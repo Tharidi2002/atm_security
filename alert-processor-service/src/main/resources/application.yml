@@ -1,0 +1,83 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: alert-processor-service
+  
+  datasource:
+    url: jdbc:mysql://localhost:3306/atm_security_system
+    username: root
+    password: MySQL@123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
+  
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: alert-processor-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+
+# Alert Processing Configuration
+alert:
+  processing:
+    deduplication-window: 300  # 5 minutes in seconds
+    severity-rules:
+      critical-keywords: "fire,tamper,unauthorized,attack,breach"
+      warning-keywords: "door open,power fail,low battery,connection lost"
+    escalation:
+      critical-timeout: 600  # 10 minutes in seconds
+      warning-timeout: 1800  # 30 minutes in seconds
+  sms:
+    webhook-endpoint: /api/sms/webhook
+    twilio:
+      account-sid: mock_account_sid
+      auth-token: mock_auth_token
+      phone-number: mock_phone_number
+
+# External Service URLs
+services:
+  notification-service: http://localhost:8084
+  atm-management-service: http://localhost:8082
+  auth-service: http://localhost:8081
+
+# Logging
+logging:
+  level:
+    com.atm.alert: DEBUG
+    org.springframework.kafka: DEBUG
+    org.springframework.web: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"

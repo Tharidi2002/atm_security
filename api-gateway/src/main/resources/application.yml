@@ -1,0 +1,144 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  
+  cloud:
+    gateway:
+      routes:
+        # Auth Service Routes
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 100
+                redis-rate-limiter.burstCapacity: 200
+                key-resolver: "#{@userKeyResolver}"
+        
+        # ATM Management Service Routes
+        - id: atm-management-service
+          uri: lb://atm-management-service
+          predicates:
+            - Path=/api/atm/**
+          filters:
+            - StripPrefix=1
+            - AuthenticationFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 50
+                redis-rate-limiter.burstCapacity: 100
+                key-resolver: "#{@userKeyResolver}"
+        
+        # Alert Processor Service Routes
+        - id: alert-processor-service
+          uri: lb://alert-processor-service
+          predicates:
+            - Path=/api/alerts/**
+          filters:
+            - StripPrefix=1
+            - AuthenticationFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 50
+                redis-rate-limiter.burstCapacity: 100
+                key-resolver: "#{@userKeyResolver}"
+        
+        # Notification Service Routes
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - StripPrefix=1
+            - AuthenticationFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                key-resolver: "#{@userKeyResolver}"
+        
+        # Reporting Service Routes
+        - id: reporting-service
+          uri: lb://reporting-service
+          predicates:
+            - Path=/api/reports/**
+          filters:
+            - StripPrefix=1
+            - AuthenticationFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                key-resolver: "#{@userKeyResolver}"
+      
+      # Circuit Breaker Configuration
+      default-filters:
+        - name: CircuitBreaker
+          args:
+            name: default
+            fallbackUri: forward:/fallback
+      
+      # CORS Configuration
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "http://localhost:3000,http://localhost:8080"
+            allowedMethods: "GET,POST,PUT,DELETE,OPTIONS"
+            allowedHeaders: "*"
+            allowCredentials: true
+
+  # Redis Configuration
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+
+# JWT Configuration
+jwt:
+  secret: atm-security-system-jwt-secret-key-2024-very-long-and-secure
+  expiration: 900000  # 15 minutes
+
+# Rate Limiting Configuration
+rate-limiting:
+  requests-per-minute: 100
+  burst-capacity: 200
+
+# Logging
+logging:
+  level:
+    com.atm.gateway: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.web.reactive: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# Management Endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,gateway
+  endpoint:
+    health:
+      show-details: always
