@@ -6,8 +6,8 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 
 @SpringBootApplication
 @EnableDiscoveryClient
-public class AtmManagementApplication {
+public class AtmManagementServiceApplication {
     public static void main(String[] args) {
-        SpringApplication.run(AtmManagementApplication.class, args);
+        SpringApplication.run(AtmManagementServiceApplication.class, args);
     }
 }

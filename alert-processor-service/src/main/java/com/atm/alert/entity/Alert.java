@@ -92,7 +92,7 @@ public class Alert {
     
     @Column(name = "is_false_alarm")
     @Builder.Default
-    private Boolean isFalseAlarm = false;
+    private Boolean falseAlarm = false;
     
     @Column(name = "false_alarm_reason", length = 500)
     private String falseAlarmReason;

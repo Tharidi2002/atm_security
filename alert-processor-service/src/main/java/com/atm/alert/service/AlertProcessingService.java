@@ -1,5 +1,7 @@
 package com.atm.alert.service;
 
+import com.atm.alert.client.AtmServiceClient;
+import com.atm.alert.client.NotificationServiceClient;
 import com.atm.alert.dto.SmsAlertDto;
 import com.atm.alert.entity.Alert;
 import com.atm.alert.enums.AlertCategory;
@@ -252,7 +254,7 @@ public class AlertProcessingService {
         alert.setStatus(AlertStatus.FALSE_ALARM);
         alert.setResolvedAt(LocalDateTime.now());
         alert.setResolvedBy(userId);
-        alert.setFalseAlarm(true);
+        alert.setFalseAlarm(Boolean.TRUE);
         alert.setFalseAlarmReason(reason);
         
         Alert savedAlert = alertRepository.save(alert);

@@ -28,7 +28,7 @@ public class SmsAlertConsumer {
     )
     public void consumeSmsAlert(@Payload String message,
                                @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
-                               @Header(KafkaHeaders.RECEIVED_PARTITION_ID) int partition,
+                               @Header(KafkaHeaders.RECEIVED_PARTITION) Integer partition,
                                @Header(KafkaHeaders.OFFSET) long offset,
                                Acknowledgment acknowledgment) {
         

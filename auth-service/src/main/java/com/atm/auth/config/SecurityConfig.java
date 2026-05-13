@@ -2,6 +2,7 @@ package com.atm.auth.config;
 
 import com.atm.auth.security.JwtAuthenticationEntryPoint;
 import com.atm.auth.security.JwtAuthenticationFilter;
+import com.atm.auth.service.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,6 +34,7 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtService jwtService;
     private final RedisTemplate<String, String> redisTemplate;
+    private final org.springframework.security.core.userdetails.UserDetailsService userDetailsService;
     
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -46,7 +48,7 @@ public class SecurityConfig {
     
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(jwtService, redisTemplate);
+        return new JwtAuthenticationFilter(jwtService, userDetailsService);
     }
     
     @Bean
