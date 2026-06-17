@@ -9,10 +9,9 @@ Enterprise-grade centralized ATM security monitoring platform with microservices
 | Eureka Server | 8761 | Service discovery |
 | API Gateway | 8080 | JWT validation, rate limiting, routing |
 | Auth Service | 8081 | RBAC, JWT, user/bank management |
-| Alert Service | 8082 | SMS webhook, alert aggregation *(Step 3)* |
-| Station Service | 8083 | ATM station CRUD *(Step 3)* |
-| Notification Service | 8084 | WebSocket, push notifications *(Step 4)* |
-| AI Service (Python) | 8000 | Anomaly detection *(Step 3)* |
+| Alert Service | 8082 | SMS webhook, alert aggregation (with native Java AI analysis) |
+| Station Service | 8083 | ATM station CRUD |
+| Notification Service | 8084 | WebSocket, push notifications |
 | React Frontend | 5173 | Web dashboard |
 
 ## Prerequisites
@@ -24,12 +23,18 @@ Enterprise-grade centralized ATM security monitoring platform with microservices
 
 ## Database Setup
 
+Initialize the databases using the provided non-Python scripts:
+
+**Option 1: Windows Batch File**
+Double click `database/init_db.bat` or run:
 ```bash
-mysql -u root -p < database/sql/01_create_schemas.sql
-mysql -u root -p < database/sql/02_auth_schema.sql
-mysql -u root -p < database/sql/03_station_schema.sql
-mysql -u root -p < database/sql/04_alert_schema.sql
-mysql -u root -p < database/sql/05_notification_schema.sql
+database/init_db.bat
+```
+
+**Option 2: PowerShell**
+Run the initializer script directly:
+```powershell
+powershell -File database/init_db.ps1
 ```
 
 **Credentials:** `root` / `Ijse@123`
@@ -90,6 +95,6 @@ Open http://localhost:5173
 - Account lockout after 5 failed login attempts
 - Audit logging for login/register events
 
-## Next Steps
-
-Reply with: **"Now generate STEP 3 (Alert Aggregator + Station Service) and STEP 4 (React Station Manager + Python AI)"**
+## Testing with ESP32
+To check the system with ESP32, upload the sketch located in `esp32/esp32_sec_system/esp32_sec_system.ino` to the ESP32. Set your Wi-Fi SSID and PASSWORD, and update `gatewayUrl` to point to your computer's IP address.
+When sensors on the ESP32 trigger, they send alerts directly to the centralized gateway. The alerts are processed and displayed on the web dashboard in real-time.

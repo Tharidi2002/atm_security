@@ -1,8 +1,6 @@
 package com.atmsecurity.alert.service;
 
 import com.atmsecurity.common.crypto.AesEncryptionService;
-import com.atmsecurity.alert.dto.AiAnalysisRequest;
-import com.atmsecurity.alert.dto.AiAnalysisResponse;
 import com.atmsecurity.alert.dto.SmsWebhookPayload;
 import com.atmsecurity.alert.entity.*;
 import com.atmsecurity.alert.repository.AlertAcknowledgementRepository;
@@ -10,7 +8,6 @@ import com.atmsecurity.alert.repository.SecurityAlertRepository;
 import com.atmsecurity.alert.repository.StationRefRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -30,9 +27,6 @@ public class AlertService {
     private final AlertAcknowledgementRepository acknowledgementRepository;
     private final AesEncryptionService encryptionService;
     private final RestTemplate restTemplate;
-
-    @Value("${ai.service.url:http://localhost:8000}")
-    private String aiServiceUrl;
 
     public List<SecurityAlert> getAllAlerts() {
         return alertRepository.findAll();
@@ -78,81 +72,60 @@ public class AlertService {
                 .source("SMS")
                 .build();
 
-        // Call AI Anomaly Service
-        try {
-            AiAnalysisRequest aiRequest = AiAnalysisRequest.builder()
-                    .stationCode(station != null ? station.getStationCode() : "UNKNOWN")
-                    .alertType(parsed.alertType)
-                    .message(message)
-                    .timestamp(LocalDateTime.now().toString())
-                    .build();
+        // Execute native local anomaly analysis (replacing the external Python service)
+        double score = 0.0;
+        boolean isAnom = false;
 
-            AiAnalysisResponse aiResponse = restTemplate.postForObject(
-                    aiServiceUrl + "/api/ai/analyze",
-                    aiRequest,
-                    AiAnalysisResponse.class
-            );
-
-            if (aiResponse != null) {
-                alert.setAnomalyScore(aiResponse.getAnomalyScore());
-                alert.setAnomaly(aiResponse.isAnomaly());
-            }
-        } catch (Exception e) {
-            log.warn("AI service call failed: {}. Executing local fallback anomaly analysis.", e.getMessage());
-            
-            double score = 0.0;
-            boolean isAnom = false;
-
-            if (station == null) {
-                score = 0.95;
-                isAnom = true;
-            }
-
-            int hour = LocalDateTime.now().getHour();
-            boolean isNight = hour < 6 || hour >= 22;
-
-            if (isNight) {
-                if ("DOOR_OPEN".equals(parsed.alertType) || "PHYSICAL_TAMPERING".equals(parsed.alertType)) {
-                    score = Math.max(score, 0.90);
-                    isAnom = true;
-                } else if ("POWER_FAILURE".equals(parsed.alertType)) {
-                    score = Math.max(score, 0.70);
-                    isAnom = true;
-                }
-            } else {
-                if ("PHYSICAL_TAMPERING".equals(parsed.alertType)) {
-                    score = Math.max(score, 0.80);
-                    isAnom = true;
-                } else if ("DOOR_OPEN".equals(parsed.alertType)) {
-                    score = Math.max(score, 0.30);
-                } else if ("FIRE_ALARM".equals(parsed.alertType)) {
-                    score = Math.max(score, 0.85);
-                    isAnom = true;
-                }
-            }
-
-            // Keyword threat matching
-            String lowerMsg = message.toLowerCase();
-            String[] keywords = {"unauthorized", "failed", "breach", "smoke", "tamper", "alarm"};
-            int kwCount = 0;
-            for (String kw : keywords) {
-                if (lowerMsg.contains(kw)) {
-                    kwCount++;
-                }
-            }
-
-            if (kwCount >= 2) {
-                score = Math.max(score, 0.75);
-                isAnom = true;
-            }
-
-            if (score >= 0.70) {
-                isAnom = true;
-            }
-
-            alert.setAnomalyScore(BigDecimal.valueOf(score));
-            alert.setAnomaly(isAnom);
+        String stationCode = (station != null) ? station.getStationCode() : "UNKNOWN";
+        if ("UNKNOWN".equals(stationCode)) {
+            score = 0.95;
+            isAnom = true;
         }
+
+        int hour = LocalDateTime.now().getHour();
+        boolean isNight = hour < 6 || hour >= 22;
+
+        if (isNight) {
+            if ("DOOR_OPEN".equals(parsed.alertType) || "PHYSICAL_TAMPERING".equals(parsed.alertType)) {
+                score = Math.max(score, 0.90);
+                isAnom = true;
+            } else if ("POWER_FAILURE".equals(parsed.alertType)) {
+                score = Math.max(score, 0.70);
+                isAnom = true;
+            }
+        } else {
+            if ("PHYSICAL_TAMPERING".equals(parsed.alertType)) {
+                score = Math.max(score, 0.80);
+                isAnom = true;
+            } else if ("DOOR_OPEN".equals(parsed.alertType)) {
+                score = Math.max(score, 0.30);
+            } else if ("FIRE_ALARM".equals(parsed.alertType)) {
+                score = Math.max(score, 0.85);
+                isAnom = true;
+            }
+        }
+
+        // Keyword threat matching
+        String lowerMsg = message.toLowerCase();
+        String[] keywords = {"unauthorized", "failed", "breach", "smoke", "tamper", "alarm"};
+        int kwCount = 0;
+        for (String kw : keywords) {
+            if (lowerMsg.contains(kw)) {
+                kwCount++;
+            }
+        }
+
+        if (kwCount >= 2) {
+            score = Math.max(score, 0.75);
+            isAnom = true;
+        }
+
+        if (score >= 0.70) {
+            isAnom = true;
+        }
+
+        alert.setAnomalyScore(BigDecimal.valueOf(score));
+        alert.setAnomaly(isAnom);
 
         SecurityAlert saved = alertRepository.save(alert);
 
