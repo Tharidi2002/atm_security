@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { ApiResponse, AuthResponse, Bank, UserProfile } from '../types';
+import type { ApiResponse, AuthResponse, Bank, UserProfile, AtmStation, SecurityAlert } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -64,6 +64,18 @@ export const authApi = {
 
 export const bankApi = {
   list: () => api.get<ApiResponse<Bank[]>>('/api/banks'),
+};
+
+export const stationApi = {
+  list: () => api.get<ApiResponse<AtmStation[]>>('/api/stations'),
+  create: (station: AtmStation) => api.post<ApiResponse<AtmStation>>('/api/stations', station),
+  update: (id: number, station: AtmStation) => api.put<ApiResponse<AtmStation>>(`/api/stations/${id}`, station),
+  delete: (id: number) => api.delete<ApiResponse<void>>(`/api/stations/${id}`),
+};
+
+export const alertApi = {
+  list: () => api.get<ApiResponse<SecurityAlert[]>>('/api/alerts'),
+  acknowledge: (id: number, notes: string) => api.post<ApiResponse<SecurityAlert>>(`/api/alerts/${id}/acknowledge`, notes),
 };
 
 export default api;

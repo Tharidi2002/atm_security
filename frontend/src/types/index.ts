@@ -42,4 +42,22 @@ export interface SecurityAlert {
   locationName?: string;
   acknowledged: boolean;
   receivedAt: string;
+  anomalyScore?: number;
+  isAnomaly?: boolean;
+  zone?: string;
+  responseNotes?: string;
 }
+
+export interface AtmStation {
+  id?: number;
+  stationCode: string;
+  phoneNumberEnc: string;
+  bankId: number;
+  bank?: Bank;
+  locationName: string;
+  locationAddress?: string;
+  latitude?: number;
+  longitude?: number;
+  active: boolean;
+}
+

@@ -29,7 +29,8 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
             "/api/banks",
             "/api/webhooks/sms",
             "/actuator/health",
-            "/actuator/info"
+            "/actuator/info",
+            "/ws/**"
     );
 
     @Override
