@@ -193,33 +193,77 @@ public class AlertService {
 
     private ParsedAlert parseMessage(String msg) {
         ParsedAlert parsed = new ParsedAlert();
-        String lower = msg.toLowerCase();
+        String trimmed = msg != null ? msg.trim() : "";
+        String lower = trimmed.toLowerCase();
 
-        if (lower.contains("door") || lower.contains("open") || lower.contains("access")) {
-            parsed.alertType = "DOOR_OPEN";
-            parsed.severity = Severity.CRITICAL;
-            parsed.title = "Unauthorized Door Access";
-            parsed.zone = "cash counter";
-        } else if (lower.contains("fire") || lower.contains("smoke") || lower.contains("temp")) {
-            parsed.alertType = "FIRE_ALARM";
-            parsed.severity = Severity.CRITICAL;
-            parsed.title = "Fire Alarm Triggered";
-            parsed.zone = "general";
-        } else if (lower.contains("power") || lower.contains("ups") || lower.contains("battery")) {
-            parsed.alertType = "POWER_FAILURE";
-            parsed.severity = Severity.WARNING;
-            parsed.title = "Power Supply Interrupted";
-            parsed.zone = "pawning area";
-        } else if (lower.contains("tamper") || lower.contains("vibration") || lower.contains("shake")) {
+        if (trimmed.contains("01 ALARM")) {
             parsed.alertType = "PHYSICAL_TAMPERING";
             parsed.severity = Severity.CRITICAL;
-            parsed.title = "Physical Tampering Detected";
-            parsed.zone = "cash counter";
-        } else {
-            parsed.alertType = "GENERAL";
+            parsed.title = "Cash Counter Breach";
+            parsed.zone = "Zone 01 - Cash Counter";
+        } else if (trimmed.contains("02 ALARM")) {
+            parsed.alertType = "PHYSICAL_TAMPERING";
+            parsed.severity = Severity.CRITICAL;
+            parsed.title = "Vault/Pawning Area Breach";
+            parsed.zone = "Zone 02 - Pawning Area / Vault";
+        } else if (trimmed.contains("03 ALARM")) {
+            parsed.alertType = "DOOR_OPEN";
+            parsed.severity = Severity.CRITICAL;
+            parsed.title = "Main Door Breach";
+            parsed.zone = "Zone 03 - Main Door";
+        } else if (trimmed.contains("04 ALARM")) {
+            parsed.alertType = "FIRE_ALARM";
+            parsed.severity = Severity.CRITICAL;
+            parsed.title = "Fire/Smoke Alarm";
+            parsed.zone = "Zone 04 - Fire/Smoke";
+        } else if (trimmed.equalsIgnoreCase("AC Failure") || lower.contains("ac failure")) {
+            parsed.alertType = "POWER_FAILURE";
+            parsed.severity = Severity.WARNING;
+            parsed.title = "AC Power Failure";
+            parsed.zone = "Zone 05 - Power Failure & Tamper";
+        } else if (trimmed.equalsIgnoreCase("AC Recovery") || lower.contains("ac recovery")) {
+            parsed.alertType = "POWER_FAILURE";
             parsed.severity = Severity.INFO;
-            parsed.title = "General Security Alert";
-            parsed.zone = "general";
+            parsed.title = "AC Power Recovered";
+            parsed.zone = "Zone 05 - Power Failure & Tamper";
+        } else if (trimmed.equalsIgnoreCase("Disarm") || lower.contains("disarm")) {
+            parsed.alertType = "SYSTEM_CONTROL";
+            parsed.severity = Severity.INFO;
+            parsed.title = "System Disarmed";
+            parsed.zone = "System Control";
+        } else if (trimmed.equalsIgnoreCase("Arm") || lower.contains("arm")) {
+            parsed.alertType = "SYSTEM_CONTROL";
+            parsed.severity = Severity.INFO;
+            parsed.title = "System Armed";
+            parsed.zone = "System Control";
+        } else {
+            // Fallbacks for compatibility
+            if (lower.contains("door") || lower.contains("open") || lower.contains("access")) {
+                parsed.alertType = "DOOR_OPEN";
+                parsed.severity = Severity.CRITICAL;
+                parsed.title = "Unauthorized Door Access";
+                parsed.zone = "Main Door";
+            } else if (lower.contains("fire") || lower.contains("smoke") || lower.contains("temp")) {
+                parsed.alertType = "FIRE_ALARM";
+                parsed.severity = Severity.CRITICAL;
+                parsed.title = "Fire Alarm Triggered";
+                parsed.zone = "Fire/Smoke";
+            } else if (lower.contains("power") || lower.contains("ups") || lower.contains("battery")) {
+                parsed.alertType = "POWER_FAILURE";
+                parsed.severity = Severity.WARNING;
+                parsed.title = "Power Supply Interrupted";
+                parsed.zone = "Power System";
+            } else if (lower.contains("tamper") || lower.contains("vibration") || lower.contains("shake")) {
+                parsed.alertType = "PHYSICAL_TAMPERING";
+                parsed.severity = Severity.CRITICAL;
+                parsed.title = "Physical Tampering Detected";
+                parsed.zone = "Cash Counter";
+            } else {
+                parsed.alertType = "GENERAL";
+                parsed.severity = Severity.INFO;
+                parsed.title = "General Security Alert";
+                parsed.zone = "General";
+            }
         }
         return parsed;
     }
