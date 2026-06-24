@@ -3,7 +3,7 @@ CREATE DATABASE IF NOT EXISTS atm
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
 
--- Database එක use කරන්න
+
 USE atm;
 
 
@@ -175,26 +175,9 @@ CREATE TABLE IF NOT EXISTS reports (
 
 
 -- ========================================
--- ATM SECURITY SYSTEM - COMPLETE SCHEMA
--- Database: atm
--- ========================================
-
--- Drop database if exists (අලුතෙන් හදන්න ඕනෙනම්)
--- DROP DATABASE IF EXISTS atm;
-
--- Create database
 
 
 USE atm;
-
--- ===== ALL TABLES =====
--- (මෙතනට ඉහත සියලු CREATE TABLE statements එක් කරන්න)
--- banks, atm_machines, atm_zones, alert_logs, users, 
--- activity_logs, sms_gateway_logs, reports
-
--- ========================================
--- SAMPLE DATA (Testing සඳහා)
--- ========================================
 
 -- 1. Sample Banks
 INSERT INTO banks (name, contact_email, contact_phone, address) VALUES 
@@ -202,60 +185,3 @@ INSERT INTO banks (name, contact_email, contact_phone, address) VALUES
 ('Commercial Bank', 'info@combank.com', '+94772222222', 'Colombo 02'),
 ('Sampath Bank', 'info@sampath.lk', '+94773333333', 'Colombo 03');
 
--- 2. Sample ATM Machines
-INSERT INTO atm_machines (atm_code, atm_name, location, sim_number, bank_id, status) VALUES 
-('ATM001', 'Main Branch ATM', 'Colombo Fort', '0712345678', 1, 'ACTIVE'),
-('ATM002', 'Kandy Branch ATM', 'Kandy City Centre', '0712345679', 1, 'ACTIVE'),
-('ATM003', 'Galle Branch ATM', 'Galle Fort', '0712345680', 2, 'ACTIVE'),
-('ATM004', 'Jaffna Branch ATM', 'Jaffna Town', '0712345681', 3, 'ACTIVE');
-
--- 3. Sample ATM Zones (Each ATM has 8 zones)
-INSERT INTO atm_zones (atm_id, zone_number, zone_name, zone_type) VALUES 
--- ATM001 Zones
-(1, 1, 'Cash Dispenser', 'SECURITY'),
-(1, 2, 'Card Reader', 'SECURITY'),
-(1, 3, 'Keypad Area', 'SECURITY'),
-(1, 4, 'Cash Vault Door', 'HIGH_SECURITY'),
-(1, 5, 'Fire Sensor', 'FIRE'),
-(1, 6, 'Motion Detector', 'MOTION'),
-(1, 7, 'Main Door', 'ACCESS'),
-(1, 8, 'SOS Button', 'EMERGENCY'),
--- ATM002 Zones
-(2, 1, 'Cash Dispenser', 'SECURITY'),
-(2, 2, 'Card Reader', 'SECURITY'),
-(2, 3, 'Keypad Area', 'SECURITY'),
-(2, 4, 'Cash Vault Door', 'HIGH_SECURITY'),
-(2, 5, 'Fire Sensor', 'FIRE'),
-(2, 6, 'Motion Detector', 'MOTION'),
-(2, 7, 'Main Door', 'ACCESS'),
-(2, 8, 'SOS Button', 'EMERGENCY');
-
--- 4. Sample Users
--- Password: admin123 (BCrypt encrypted)
-INSERT INTO users (username, password, email, full_name, role, bank_id) VALUES 
-('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5E', 'admin@system.com', 'System Admin', 'ADMIN', NULL),
-('bank_user1', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5E', 'user1@nationalbank.com', 'National Bank User', 'BANK_USER', 1),
-('bank_user2', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5E', 'user2@combank.com', 'Commercial Bank User', 'BANK_USER', 2);
-
--- 5. Sample Alert Logs (Testing)
-INSERT INTO alert_logs (atm_id, zone_number, zone_name, alert_type, raw_message, status, severity, received_at) VALUES 
-(1, 5, 'Fire Sensor', 'FIRE', 'Alarm! Zone:05 Fire at ATM Main Branch', 'PENDING', 3, DATE_SUB(NOW(), INTERVAL 10 MINUTE)),
-(1, 1, 'Cash Dispenser', 'TAMPER_ALERT', 'Alarm! Zone:01 Tamper at Cash Dispenser', 'PENDING', 3, DATE_SUB(NOW(), INTERVAL 25 MINUTE)),
-(2, 7, 'Main Door', 'DOOR_OPEN', 'Alarm! Zone:07 Door Open at Kandy Branch', 'ACKNOWLEDGED', 2, DATE_SUB(NOW(), INTERVAL 1 HOUR)),
-(3, 4, 'Cash Vault Door', 'INTRUSION', 'Alarm! Zone:04 Intrusion at Galle Branch', 'PENDING', 4, DATE_SUB(NOW(), INTERVAL 5 MINUTE)),
-(1, 8, 'SOS Button', 'SOS_ALARM', 'SOS Alarm! Zone:08 at Main Branch', 'PENDING', 4, DATE_SUB(NOW(), INTERVAL 2 MINUTE));
-
--- 6. Sample Activity Logs
-INSERT INTO activity_logs (user_id, username, action, details, ip_address) VALUES 
-(1, 'admin', 'LOGIN', 'Admin logged in', '192.168.1.1'),
-(2, 'bank_user1', 'VIEW_ALERTS', 'Viewed alerts for National Bank', '192.168.1.2');
-
--- ========================================
--- VERIFY TABLES
--- ========================================
-SHOW TABLES;
-SELECT COUNT(*) FROM banks;
-SELECT COUNT(*) FROM atm_machines;
-SELECT COUNT(*) FROM atm_zones;
-SELECT COUNT(*) FROM alert_logs;
-SELECT COUNT(*) FROM users;

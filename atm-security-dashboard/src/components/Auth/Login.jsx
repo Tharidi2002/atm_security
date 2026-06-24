@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Shield, User, Lock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -67,6 +67,15 @@ const Login = () => {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
+
+        <div className="mt-4 text-center">
+          <p className="text-sm text-slate-400">
+            Don't have an account?{' '}
+            <Link to="/register" className="text-red-400 hover:text-red-300 transition-colors">
+              Register here
+            </Link>
+          </p>
+        </div>
 
         <p className="text-center text-xs text-slate-500 mt-6 font-mono">
           Demo Credentials: admin / admin123

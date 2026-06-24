@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { authService } from '../services/authService';
 
 const AuthContext = createContext();
 
@@ -9,47 +10,62 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  // useNavigate එක මෙතනදී call නොකරන්න - Router context එක තියෙනවද කියලා check කරන්න
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     const userData = localStorage.getItem('user');
+    
     if (token && userData) {
-      setUser(JSON.parse(userData));
+      try {
+        setUser(JSON.parse(userData));
+      } catch {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+      }
     }
     setLoading(false);
   }, []);
 
-  // Login function - useNavigate එක පිටතින් call කරන්න
   const login = async (username, password, navigate) => {
     try {
-      // TODO: Connect to real backend
-      // For now, use mock data
-      const mockUser = {
-        id: 1,
-        username,
-        fullName: 'Admin User',
-        role: 'ADMIN',
-        bank: { id: 1, name: 'National Bank' }
-      };
+      setLoading(true);
+      const data = await authService.login(username, password);
       
-      localStorage.setItem('authToken', 'mock-jwt-token');
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      setUser(mockUser);
-      toast.success('Login successful!');
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      setUser(data.user);
+      
+      toast.success(`Welcome ${data.user.fullName || data.user.username}!`);
       if (navigate) {
         navigate('/dashboard');
       }
       return true;
     } catch (error) {
-      toast.error('Login failed. Please try again.');
+      const message = error.response?.data?.error || 'Login failed. Please try again.';
+      toast.error(message);
       return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const register = async (userData) => {
+    try {
+      setLoading(true);
+      const data = await authService.register(userData);
+      toast.success(data.message || 'Registration successful! Please login.');
+      return true;
+    } catch (error) {
+      const message = error.response?.data?.error || 'Registration failed. Please try again.';
+      toast.error(message);
+      return false;
+    } finally {
+      setLoading(false);
     }
   };
 
   const logout = (navigate) => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
+    authService.logout();
     setUser(null);
     toast.success('Logged out successfully');
     if (navigate) {
@@ -61,6 +77,7 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     login,
+    register,
     logout,
     isAuthenticated: !!user,
   };

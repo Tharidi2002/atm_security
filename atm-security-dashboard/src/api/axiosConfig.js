@@ -1,7 +1,7 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-// Use relative path for Vite proxy
+// Use proxy for development
 const API_URL = '/api';
 
 const axiosInstance = axios.create({
@@ -21,9 +21,7 @@ axiosInstance.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Response interceptor
@@ -31,14 +29,11 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
     console.error('API Error:', error);
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 || error.response?.status === 403) {
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
       window.location.href = '/login';
       toast.error('Session expired. Please login again.');
-    }
-    if (error.code === 'ERR_NETWORK') {
-      toast.error('Cannot connect to server. Please check if backend is running.');
     }
     return Promise.reject(error);
   }

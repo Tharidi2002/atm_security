@@ -37,4 +37,21 @@ public interface AlertLogRepository extends JpaRepository<AlertLog, Long> {
     
     @Query("SELECT a FROM AlertLog a WHERE a.alertType LIKE %:type%")
     List<AlertLog> findByAlertTypeContaining(@Param("type") String alertType);
+
+    @Query("SELECT a FROM AlertLog a WHERE (:bankId IS NULL OR a.atmMachine.bank.id = :bankId) " +
+           "AND (:status IS NULL OR a.status = :status) " +
+           "AND (:atmId IS NULL OR a.atmMachine.id = :atmId)")
+    Page<AlertLog> findAlertsFiltered(@Param("bankId") Long bankId, 
+                                      @Param("status") AlertStatus status, 
+                                      @Param("atmId") Long atmId, 
+                                      Pageable pageable);
+
+    @Query("SELECT COUNT(a) FROM AlertLog a WHERE (:bankId IS NULL OR a.atmMachine.bank.id = :bankId) AND a.status = :status")
+    long countByStatusAndBankId(@Param("status") AlertStatus status, @Param("bankId") Long bankId);
+
+    @Query("SELECT COUNT(a) FROM AlertLog a WHERE (:bankId IS NULL OR a.atmMachine.bank.id = :bankId) AND a.status IN :statuses")
+    long countByStatusInAndBankId(@Param("statuses") List<AlertStatus> statuses, @Param("bankId") Long bankId);
+
+    @Query("SELECT COUNT(a) FROM AlertLog a WHERE (:bankId IS NULL OR a.atmMachine.bank.id = :bankId)")
+    long countByBankId(@Param("bankId") Long bankId);
 }

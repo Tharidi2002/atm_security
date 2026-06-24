@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import Login from './components/Auth/Login';
+import Register from './components/Auth/Register';
 import Dashboard from './pages/Dashboard';
 import Alerts from './pages/Alerts';
 import AtmManagement from './pages/AtmManagement';
@@ -28,6 +29,7 @@ function App() {
         />
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           <Route path="/" element={<Navigate to="/dashboard" />} />
           <Route 
             path="/dashboard" 
