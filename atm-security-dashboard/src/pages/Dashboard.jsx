@@ -1,116 +1,57 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Shield, AlertTriangle, CheckCircle2, Clock, 
-  MapPin, Radio, RefreshCw, Activity, 
-  TrendingUp, Zap, Bell, Menu, X 
-} from 'lucide-react';
-import toast from 'react-hot-toast';
-import { alertService } from '../services/alertService';
-import Layout from '../components/Layout/Layout';
-import StatsCard from '../components/Dashboard/StatsCard';
-import AlertList from '../components/Dashboard/AlertList';
-import AlertFilters from '../components/Dashboard/AlertFilters';
+import React from 'react';
+import Navbar from '../components/Navbar';
+import StatsCards from '../components/StatsCards';
+import AlertTable from '../components/AlertTable';
+import NotificationToast from '../components/NotificationToast';
+import { useAlerts } from '../hooks/useAlerts';
 
-const Dashboard = () => {
-  const [alerts, setAlerts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ total: 0, pending: 0, unresolved: 0 });
-  const [filters, setFilters] = useState({ status: '', atmId: '' });
-  const [page, setPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [alertsData, statsData] = await Promise.all([
-        alertService.getAlerts(page, 20, filters.status || null, filters.atmId || null),
-        alertService.getStats(),
-      ]);
-      
-      setAlerts(alertsData.content || []);
-      setTotalPages(alertsData.totalPages || 0);
-      setStats(statsData);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      toast.error('Failed to fetch data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 15000);
-    return () => clearInterval(interval);
-  }, [page, filters]);
-
-  const handleFilterChange = (newFilters) => {
-    setFilters(newFilters);
-    setPage(0);
-  };
+export default function Dashboard() {
+  const { 
+    alerts, 
+    loading, 
+    stats, 
+    newAlert,
+    clearNewAlert,
+    refreshAlerts,
+    tableContainerRef 
+  } = useAlerts();
 
   return (
-    <Layout>
-      <div className="space-y-4 sm:space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-white">Security Dashboard</h1>
-            <p className="text-slate-400 text-xs sm:text-sm">Real-time ATM threat monitoring system</p>
+    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans">
+      <Navbar onRefresh={refreshAlerts} />
+      
+      <main className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
+        <StatsCards stats={stats} />
+        
+        {/* Alerts count badge */}
+        <div className="flex justify-between items-center">
+          <div className="text-sm text-slate-400">
+            Showing <span className="text-white font-bold">{alerts.length}</span> alerts
+            {stats.pending > 0 && (
+              <span className="ml-2 text-red-400">
+                • <span className="font-bold">{stats.pending}</span> pending
+              </span>
+            )}
           </div>
-          <button
-            onClick={fetchData}
-            className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm transition-all border border-slate-700"
-          >
-            <RefreshCw className={`w-3 h-3 sm:w-4 sm:h-4 ${loading ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Refresh</span>
-          </button>
+          <div className="text-xs text-slate-500 font-mono">
+            Auto-refresh every 5s
+          </div>
         </div>
 
-        {/* Stats - Responsive Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <StatsCard
-            icon={<Activity className="w-4 h-4 sm:w-5 sm:h-5" />}
-            label="Total Alerts"
-            value={stats.total}
-            color="blue"
-          />
-          <StatsCard
-            icon={<AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />}
-            label="Active Threats"
-            value={stats.pending}
-            color="red"
-          />
-          <StatsCard
-            icon={<CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />}
-            label="Resolved"
-            value={stats.total - stats.pending}
-            color="green"
-          />
-          <StatsCard
-            icon={<Bell className="w-4 h-4 sm:w-5 sm:h-5" />}
-            label="Unresolved"
-            value={stats.unresolved || 0}
-            color="yellow"
-          />
-        </div>
-
-        {/* Filters */}
-        <AlertFilters onFilterChange={handleFilterChange} />
-
-        {/* Alerts Table */}
-        <AlertList
-          alerts={alerts}
-          loading={loading}
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          onAlertUpdate={fetchData}
+        <AlertTable 
+          alerts={alerts} 
+          loading={loading} 
+          tableContainerRef={tableContainerRef}
         />
-      </div>
-    </Layout>
-  );
-};
+      </main>
 
-export default Dashboard;
+      {/* Notification Toast - New alert එකක් ආවොත් */}
+      {newAlert && (
+        <NotificationToast 
+          alert={newAlert} 
+          onClose={clearNewAlert} 
+        />
+      )}
+    </div>
+  );
+}
