@@ -24,4 +24,7 @@ public class AlarmSystem {
     private String simNumber;
 
     private String status = "ACTIVE";
+
+    @Column(name = "last_status_changed_at")
+    private java.time.LocalDateTime lastStatusChangedAt = java.time.LocalDateTime.now();
 }

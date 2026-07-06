@@ -30,7 +30,7 @@ public class AlertController {
 
     // 2. දැනට තියෙන ඔක්කොම Alerts ලැයිස්තුව බලන API එක
     @GetMapping
-    public ResponseEntity<List<AlertLog>> getAllAlerts() {
-        return ResponseEntity.ok(alertService.getAllAlerts());
+    public ResponseEntity<List<AlertLog>> getAllAlerts(@RequestParam(required = false) String username) {
+        return ResponseEntity.ok(alertService.getAllAlerts(username));
     }
 }

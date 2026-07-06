@@ -2,8 +2,12 @@ package com.security.alarm.service;
 
 import com.security.alarm.entity.AlertLog;
 import com.security.alarm.entity.AlarmSystem;
+import com.security.alarm.entity.User;
+import com.security.alarm.entity.UserSystem;
 import com.security.alarm.repository.AlertLogRepository;
 import com.security.alarm.repository.AlarmSystemRepository;
+import com.security.alarm.repository.UserRepository;
+import com.security.alarm.repository.UserSystemRepository;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -18,10 +22,17 @@ public class AlertService {
 
     private final AlertLogRepository alertLogRepository;
     private final AlarmSystemRepository alarmSystemRepository;
+    private final UserRepository userRepository;
+    private final UserSystemRepository userSystemRepository;
 
-    public AlertService(AlertLogRepository alertLogRepository, AlarmSystemRepository alarmSystemRepository) {
+    public AlertService(AlertLogRepository alertLogRepository, 
+                        AlarmSystemRepository alarmSystemRepository,
+                        UserRepository userRepository,
+                        UserSystemRepository userSystemRepository) {
         this.alertLogRepository = alertLogRepository;
         this.alarmSystemRepository = alarmSystemRepository;
+        this.userRepository = userRepository;
+        this.userSystemRepository = userSystemRepository;
     }
 
     // 1. මැෂින් එකෙන් එන SMS එක Process කරලා Save කරන ක්‍රියාවලිය
@@ -114,8 +125,19 @@ public class AlertService {
         return uniqueZones.isEmpty() ? "" : String.join(",", uniqueZones);
     }
 
-    // 2. සියලුම අනතුරු ඇඟවීම් ලැයිස්තුව ලබාගැනීම (Dashboard එක සඳහා)
-    public List<AlertLog> getAllAlerts() {
+    // 2. සියලුම අනතුරු ඇඟවීම් ලැයිස්තුව ලබාගැනීම (Dashboard එක සඳහා) - Overloaded to filter by user
+    public List<AlertLog> getAllAlerts(String username) {
+        if (username != null && !username.trim().isEmpty()) {
+            Optional<User> userOpt = userRepository.findByUsername(username);
+            if (userOpt.isPresent() && "USER".equalsIgnoreCase(userOpt.get().getRole())) {
+                List<UserSystem> userSystems = userSystemRepository.findAllByUserId(userOpt.get().getId());
+                List<Long> systemIds = userSystems.stream().map(UserSystem::getSystemId).collect(Collectors.toList());
+                if (systemIds.isEmpty()) {
+                    return new ArrayList<>(); // User has no assigned systems, return empty list
+                }
+                return alertLogRepository.findAllByAlarmSystemIdInOrderByReceivedAtDesc(systemIds);
+            }
+        }
         return alertLogRepository.findAllByOrderByReceivedAtDesc();
     }
 }

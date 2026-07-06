@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface AlertLogRepository extends JpaRepository<AlertLog, Long> {
     List<AlertLog> findAllByOrderByReceivedAtDesc();
+    List<AlertLog> findAllByAlarmSystemIdInOrderByReceivedAtDesc(List<Long> systemIds);
 }

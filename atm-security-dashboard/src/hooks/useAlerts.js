@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchAlerts } from '../services/api';
 
-export function useAlerts() {
+export function useAlerts(username) {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newAlert, setNewAlert] = useState(null);
@@ -25,7 +25,7 @@ export function useAlerts() {
         scrollPositionRef.current = tableContainerRef.current.scrollTop;
       }
 
-      const data = await fetchAlerts();
+      const data = await fetchAlerts(username);
       
       // New alerts තියෙනවද කියලා check කරන්න
       const currentIds = new Set(data.map(a => a.id));
@@ -52,7 +52,7 @@ export function useAlerts() {
     } finally {
       if (showLoading) setLoading(false);
     }
-  }, []);
+  }, [username]);
 
   const clearNewAlert = useCallback(() => {
     setNewAlert(null);

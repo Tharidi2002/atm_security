@@ -3,7 +3,8 @@
 -- ======================================================
 
 -- 1. Database එක create කරන්න (නැත්නම්)
-CREATE DATABASE IF NOT EXISTS alarm_security_db;
+DROP DATABASE IF EXISTS alarm_security_db;
+CREATE DATABASE alarm_security_db;
 USE alarm_security_db;
 
 -- ======================================================
@@ -13,18 +14,19 @@ USE alarm_security_db;
 
 -- 2.1 Alarm Systems Table
 
-CREATE TABLE `alarm_systems` (
+CREATE TABLE IF NOT EXISTS `alarm_systems` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `system_code` VARCHAR(50) NOT NULL UNIQUE,
     `location` VARCHAR(255) NOT NULL,
     `sim_number` VARCHAR(20) NOT NULL,
     `status` VARCHAR(20) DEFAULT 'ACTIVE',
+    `last_status_changed_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 2.2 Alarm Zones Table
 
-CREATE TABLE `alarm_zones` (
+CREATE TABLE IF NOT EXISTS `alarm_zones` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `system_id` BIGINT,
     `zone_number` INT NOT NULL,
@@ -35,7 +37,7 @@ CREATE TABLE `alarm_zones` (
 
 -- 2.3 Alert Logs Table (Updated with new columns)
 
-CREATE TABLE `alert_logs` (
+CREATE TABLE IF NOT EXISTS `alert_logs` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `system_id` BIGINT,
     `zone_number` INT DEFAULT 0,
@@ -399,6 +401,68 @@ DELIMITER ;
 
 -- DELETE FROM alert_logs WHERE alert_type LIKE '%ZONE%';
 -- DELETE FROM alert_logs WHERE received_at < DATE_SUB(NOW(), INTERVAL 7 DAY);
+
+-- ======================================================
+-- 11. User Management Tables & Data
+-- ======================================================
+
+CREATE TABLE IF NOT EXISTS `users` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `username` VARCHAR(50) NOT NULL UNIQUE,
+    `password` VARCHAR(255) NOT NULL,
+    `role` VARCHAR(20) NOT NULL,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `user_systems` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `user_id` BIGINT NOT NULL,
+    `system_id` BIGINT NOT NULL,
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`system_id`) REFERENCES `alarm_systems`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Insert default Admin
+INSERT INTO `users` (`username`, `password`, `role`)
+VALUES ('admin', 'admin123', 'ADMIN')
+ON DUPLICATE KEY UPDATE username=username;
+
+-- Insert default User 1
+INSERT INTO `users` (`username`, `password`, `role`)
+VALUES ('user1', 'user123', 'USER')
+ON DUPLICATE KEY UPDATE username=username;
+
+-- Insert default User 2
+INSERT INTO `users` (`username`, `password`, `role`)
+VALUES ('user2', 'user123', 'USER')
+ON DUPLICATE KEY UPDATE username=username;
+
+-- Map systems for User 1 (ALARM-MAIN-01 -> id 1)
+INSERT INTO `user_systems` (`user_id`, `system_id`)
+SELECT 
+    (SELECT id FROM users WHERE username = 'user1'),
+    (SELECT id FROM alarm_systems WHERE system_code = 'ALARM-MAIN-01')
+WHERE NOT EXISTS (
+    SELECT 1 FROM user_systems WHERE user_id = (SELECT id FROM users WHERE username = 'user1') AND system_id = (SELECT id FROM alarm_systems WHERE system_code = 'ALARM-MAIN-01')
+);
+
+-- Map systems for User 2 (ALARM-Z8B-01 -> id 2, ALARM-Z8B-02 -> id 3)
+INSERT INTO `user_systems` (`user_id`, `system_id`)
+SELECT 
+    (SELECT id FROM users WHERE username = 'user2'),
+    (SELECT id FROM alarm_systems WHERE system_code = 'ALARM-Z8B-01')
+WHERE NOT EXISTS (
+    SELECT 1 FROM user_systems WHERE user_id = (SELECT id FROM users WHERE username = 'user2') AND system_id = (SELECT id FROM alarm_systems WHERE system_code = 'ALARM-Z8B-01')
+);
+
+INSERT INTO `user_systems` (`user_id`, `system_id`)
+SELECT 
+    (SELECT id FROM users WHERE username = 'user2'),
+    (SELECT id FROM alarm_systems WHERE system_code = 'ALARM-Z8B-02')
+WHERE NOT EXISTS (
+    SELECT 1 FROM user_systems WHERE user_id = (SELECT id FROM users WHERE username = 'user2') AND system_id = (SELECT id FROM alarm_systems WHERE system_code = 'ALARM-Z8B-02')
+);
 
 -- ======================================================
 -- End of Script
