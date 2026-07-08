@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { X, CheckCircle, AlertCircle, User, FileText } from 'lucide-react';
+import { X, CheckCircle, AlertCircle, User, FileText, Calendar, Timer } from 'lucide-react';
 import { resolveAlert } from '../services/api';
 
 export default function AlertResolveModal({ alert, isOpen, onClose, onResolved, username }) {
@@ -8,6 +8,54 @@ export default function AlertResolveModal({ alert, isOpen, onClose, onResolved, 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [pendingDuration, setPendingDuration] = useState('');
+
+  useEffect(() => {
+    if (isOpen && alert) {
+      updatePendingDuration();
+      // Update every second while modal is open
+      const interval = setInterval(updatePendingDuration, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isOpen, alert]);
+
+  const updatePendingDuration = () => {
+    if (!alert || !alert.receivedAt) {
+      setPendingDuration('N/A');
+      return;
+    }
+    
+    const now = new Date();
+    const received = new Date(alert.receivedAt);
+    const diffMs = now - received;
+    
+    if (diffMs < 0) {
+      setPendingDuration('N/A');
+      return;
+    }
+    
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    let durationStr = '';
+    
+    if (diffDays > 0) {
+      durationStr += `${diffDays}d `;
+    }
+    if (diffHours % 24 > 0) {
+      durationStr += `${diffHours % 24}h `;
+    }
+    if (diffMins % 60 > 0) {
+      durationStr += `${diffMins % 60}m `;
+    }
+    if (diffSecs % 60 > 0) {
+      durationStr += `${diffSecs % 60}s`;
+    }
+    
+    setPendingDuration(durationStr.trim() || '0s');
+  };
 
   if (!isOpen || !alert) return null;
 
@@ -35,24 +83,9 @@ export default function AlertResolveModal({ alert, isOpen, onClose, onResolved, 
     }
   };
 
-  // Calculate pending duration
-  const getPendingDuration = () => {
-    if (!alert.receivedAt) return 'N/A';
-    const now = new Date();
-    const received = new Date(alert.receivedAt);
-    const diffMs = now - received;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-    
-    if (diffDays > 0) return `${diffDays}d ${diffHours % 24}h`;
-    if (diffHours > 0) return `${diffHours}h ${diffMins % 60}m`;
-    return `${diffMins}m`;
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl shadow-red-500/10">
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-slate-800">
           <div className="flex items-center gap-3">
@@ -85,12 +118,30 @@ export default function AlertResolveModal({ alert, isOpen, onClose, onResolved, 
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-slate-400">Received</span>
-              <span className="text-white">{new Date(alert.receivedAt).toLocaleString()}</span>
+              <span className="text-white font-mono text-sm">
+                <Calendar className="w-3.5 h-3.5 inline mr-1 text-slate-500" />
+                {new Date(alert.receivedAt).toLocaleString()}
+              </span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-slate-400">Pending Duration</span>
-              <span className="text-yellow-400 font-bold">{getPendingDuration()}</span>
+            
+            {/* ===== PENDING DURATION - NEW ===== */}
+            <div className="flex justify-between items-center border-t border-slate-800 pt-3 mt-1">
+              <span className="text-sm text-slate-400 flex items-center gap-1.5">
+                <Timer className="w-4 h-4 text-yellow-500" />
+                Pending Duration
+              </span>
+              <span className="text-yellow-400 font-bold font-mono text-lg">
+                {pendingDuration}
+              </span>
             </div>
+          </div>
+
+          {/* Message Preview */}
+          <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-3">
+            <p className="text-[10px] text-slate-500 font-mono">📨 Alert Message</p>
+            <p className="text-xs text-slate-300 font-mono truncate">
+              {alert.alertType || 'No message'}
+            </p>
           </div>
 
           {/* Description Input */}
@@ -111,7 +162,7 @@ export default function AlertResolveModal({ alert, isOpen, onClose, onResolved, 
           {/* Resolve Info */}
           <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
             <User className="w-3.5 h-3.5" />
-            <span>Resolving as: <span className="text-white">{username}</span></span>
+            <span>Resolving as: <span className="text-white font-bold">{username}</span></span>
           </div>
 
           {/* Error/Success Messages */}

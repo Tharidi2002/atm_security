@@ -1,52 +1,167 @@
-import React, { useEffect, useState } from 'react';
-import { Bell, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import PropTypes from 'prop-types';
+import { Bell, X, AlertTriangle, MapPin, Clock, Radio } from 'lucide-react';
+import StatusBadge from './StatusBadge';
 
 export default function NotificationToast({ alert, onClose }) {
   const [isVisible, setIsVisible] = useState(true);
+  const [isClosing, setIsClosing] = useState(false);
 
   useEffect(() => {
+    // Auto close after 8 seconds
     const timer = setTimeout(() => {
-      setIsVisible(false);
-      setTimeout(onClose, 300);
-    }, 5000); // තත්පර 5කින් auto close වෙනවා
+      handleClose();
+    }, 8000);
 
     return () => clearTimeout(timer);
-  }, [onClose]);
+  }, []);
 
-  if (!isVisible) return null;
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setIsVisible(false);
+      onClose();
+    }, 300);
+  };
+
+  if (!isVisible || !alert) return null;
+
+  const renderZoneBadges = (zoneNumbers) => {
+    if (!zoneNumbers || zoneNumbers === '00' || zoneNumbers === '0') {
+      return <span className="text-slate-400">No Zone</span>;
+    }
+
+    const zones = zoneNumbers.split(',').map(z => z.trim()).filter(z => z !== '');
+    
+    if (zones.length === 0) {
+      return <span className="text-slate-400">No Zone</span>;
+    }
+
+    return (
+      <div className="flex flex-wrap gap-3 justify-center">
+        {zones.map((zone, index) => (
+          <span 
+            key={index}
+            className="px-5 py-2 bg-amber-500/20 text-amber-400 border-2 border-amber-500/40 rounded-xl text-xl font-bold"
+          >
+            Zone {String(zone).padStart(2, '0')}
+          </span>
+        ))}
+      </div>
+    );
+  };
 
   return (
-    <div className="fixed top-4 right-4 z-50 max-w-sm w-full animate-slide-in">
-      <div className="bg-slate-900 border border-red-500/30 rounded-xl shadow-2xl p-4">
-        <div className="flex items-start gap-3">
-          <div className="bg-red-500/10 p-2 rounded-lg border border-red-500/20 flex-shrink-0">
-            <Bell className="w-5 h-5 text-red-500 animate-pulse" />
-          </div>
-          
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-red-400 uppercase tracking-wider">New Alert!</span>
-              <span className="text-xs text-slate-500">{alert.alarmSystem?.systemCode || 'UNKNOWN'}</span>
+    <div className={`fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-300 ${
+      isClosing ? 'animate-out fade-out duration-300' : ''
+    }`}>
+      <div className={`bg-slate-900 border-2 border-red-500/30 rounded-3xl max-w-2xl w-full mx-4 p-8 shadow-2xl shadow-red-500/20 transform transition-all duration-500 ${
+        isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'
+      }`}>
+        
+        {/* Close Button */}
+        <button 
+          onClick={handleClose}
+          className="absolute top-4 right-4 p-2 hover:bg-slate-800 rounded-xl transition-colors"
+        >
+          <X className="w-6 h-6 text-slate-400 hover:text-white" />
+        </button>
+
+        {/* Header */}
+        <div className="text-center mb-6">
+          <div className="flex justify-center mb-3">
+            <div className="relative">
+              <div className="absolute inset-0 bg-red-500/30 rounded-full blur-2xl animate-pulse"></div>
+              <div className="relative bg-red-500/20 p-5 rounded-full border-4 border-red-500/50">
+                <Bell className="w-16 h-16 text-red-500 animate-bounce" />
+              </div>
             </div>
-            <p className="text-sm text-slate-300 truncate mt-1">
-              {alert.alertType?.substring(0, 60) || 'New alert received'}
-            </p>
-            <p className="text-xs text-slate-500 mt-1">
-              {new Date(alert.receivedAt).toLocaleTimeString()}
+          </div>
+          <h2 className="text-4xl font-bold text-white uppercase tracking-wider animate-pulse">
+            🚨 NEW ALERT!
+          </h2>
+          <p className="text-red-400 text-sm font-mono mt-1">Immediate Attention Required</p>
+        </div>
+
+        {/* Alert Details */}
+        <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+          {/* System Code & Status */}
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <StatusBadge status={alert.status} />
+            <span className="text-2xl font-mono font-bold text-emerald-400">
+              {alert.alarmSystem?.systemCode || 'UNKNOWN'}
+            </span>
+          </div>
+
+          {/* Location */}
+          <div className="flex items-center justify-center gap-2 text-slate-300 text-lg">
+            <MapPin className="w-5 h-5 text-slate-500 flex-shrink-0" />
+            <span>{alert.alarmSystem?.location || 'Unknown Location'}</span>
+          </div>
+
+          {/* Zones */}
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex items-center gap-2 text-slate-400 text-sm">
+              <Radio className="w-4 h-4 flex-shrink-0" />
+              <span>Affected Zones</span>
+            </div>
+            {renderZoneBadges(alert.zoneNumbers)}
+          </div>
+
+          {/* Message Preview */}
+          <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 mt-2">
+            <p className="text-xs text-slate-500 mb-1 font-mono">📨 Alert Message</p>
+            <p className="text-white font-mono text-base break-words">
+              {alert.alertType || 'No message'}
             </p>
           </div>
 
-          <button 
-            onClick={() => {
-              setIsVisible(false);
-              setTimeout(onClose, 300);
-            }}
-            className="p-1 hover:bg-slate-800 rounded-lg transition-colors flex-shrink-0"
+          {/* Time */}
+          <div className="flex items-center justify-center gap-2 text-slate-400 text-sm">
+            <Clock className="w-4 h-4 flex-shrink-0" />
+            <span>Received: {new Date(alert.receivedAt).toLocaleString()}</span>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-3 mt-6">
+          <button
+            onClick={handleClose}
+            className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-mono transition-all border border-slate-700"
           >
-            <X className="w-4 h-4 text-slate-400" />
+            Dismiss
           </button>
+          <button
+            onClick={() => {
+              // Scroll to alerts table
+              const table = document.querySelector('.max-h-\\[600px\\]');
+              if (table) {
+                table.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+              handleClose();
+            }}
+            className="flex-1 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold rounded-xl text-sm font-mono transition-all uppercase tracking-wide flex items-center justify-center gap-2"
+          >
+            <AlertTriangle className="w-4 h-4" />
+            View Alert
+          </button>
+        </div>
+
+        {/* Auto-close timer indicator */}
+        <div className="mt-4 flex justify-center">
+          <div className="w-32 h-1 bg-slate-800 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-red-500 rounded-full animate-progress"
+              style={{ animationDuration: '8s' }}
+            ></div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
+NotificationToast.propTypes = {
+  alert: PropTypes.object,
+  onClose: PropTypes.func.isRequired,
+};

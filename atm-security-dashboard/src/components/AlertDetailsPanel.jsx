@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
-import { X, MapPin, Clock, Radio, ChevronRight, CheckCircle, User, Clock as ClockIcon } from 'lucide-react';
+import { X, MapPin, Clock, Radio, ChevronRight, CheckCircle, User, Clock as ClockIcon, Timer } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import AlertResolveModal from './AlertResolveModal';
 
@@ -34,15 +34,22 @@ export default function AlertDetailsPanel({ alert, isOpen, onClose, onResolved, 
     );
   };
 
+  // ===== UPDATED: Format duration with seconds =====
   const formatDuration = (seconds) => {
     if (!seconds) return 'N/A';
-    const mins = Math.floor(seconds / 60);
-    const hours = Math.floor(mins / 60);
-    const days = Math.floor(hours / 24);
     
-    if (days > 0) return `${days}d ${hours % 24}h ${mins % 60}m`;
-    if (hours > 0) return `${hours}h ${mins % 60}m`;
-    return `${mins}m`;
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    const parts = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (mins > 0) parts.push(`${mins}m`);
+    if (secs > 0) parts.push(`${secs}s`);
+    
+    return parts.length > 0 ? parts.join(' ') : '0s';
   };
 
   const isPending = alert.status === 'PENDING';
@@ -109,6 +116,16 @@ export default function AlertDetailsPanel({ alert, isOpen, onClose, onResolved, 
 
 // ===== PanelContent Component =====
 function PanelContent({ alert, renderZoneBadges, formatDuration, isPending, onResolveClick }) {
+  // Calculate live pending duration for PENDING alerts
+  const getLivePendingDuration = () => {
+    if (!alert.receivedAt) return 'N/A';
+    const now = new Date();
+    const received = new Date(alert.receivedAt);
+    const diffMs = now - received;
+    const diffSecs = Math.floor(diffMs / 1000);
+    return formatDuration(diffSecs);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -142,6 +159,14 @@ function PanelContent({ alert, renderZoneBadges, formatDuration, isPending, onRe
         <span>Received: {new Date(alert.receivedAt).toLocaleString()}</span>
       </div>
 
+      {/* ===== PENDING DURATION - NEW ===== */}
+      {isPending && (
+        <div className="flex items-center gap-2 text-yellow-400 text-sm bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-3">
+          <Timer className="w-4 h-4 flex-shrink-0" />
+          <span>Pending for: <span className="font-bold font-mono">{getLivePendingDuration()}</span></span>
+        </div>
+      )}
+
       {/* Resolved Info - Only show if resolved */}
       {alert.status === 'RESOLVED' && (
         <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 space-y-2">
@@ -158,7 +183,7 @@ function PanelContent({ alert, renderZoneBadges, formatDuration, isPending, onRe
             <span>At: <span className="text-white">{alert.resolvedAt ? new Date(alert.resolvedAt).toLocaleString() : 'N/A'}</span></span>
           </div>
           <div className="flex items-center gap-2 text-slate-400 text-xs">
-            <Clock className="w-3.5 h-3.5" />
+            <Timer className="w-3.5 h-3.5 text-yellow-500" />
             <span>Pending duration: <span className="text-yellow-400 font-bold">{formatDuration(alert.pendingDurationSeconds)}</span></span>
           </div>
           {alert.resolutionDescription && (

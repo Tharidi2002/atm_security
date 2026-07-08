@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { MapPin, Clock, MessageSquare, Phone, Bell, AlertTriangle, CheckCircle } from 'lucide-react';
+import { MapPin, Clock, MessageSquare, Phone, Bell, AlertTriangle, CheckCircle, Timer } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import AlertModal from './AlertModal';
 import AlertDetailsPanel from './AlertDetailsPanel';
@@ -13,6 +13,15 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [resolveAlertData, setResolveAlertData] = useState(null);
   const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
+  const [, setForceUpdate] = useState({});
+
+  // Update every second for live pending duration
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setForceUpdate({});
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const getMessageIcon = (alertType) => {
     if (!alertType) return <MessageSquare className="w-4 h-4 text-slate-400" />;
@@ -36,6 +45,38 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
       return alertType.substring(0, 50) + '...';
     }
     return alertType;
+  };
+
+  // ===== NEW: Calculate pending duration =====
+  const getPendingDuration = (receivedAt) => {
+    if (!receivedAt) return 'N/A';
+    const now = new Date();
+    const received = new Date(receivedAt);
+    const diffMs = now - received;
+    
+    if (diffMs < 0) return 'N/A';
+    
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    let durationStr = '';
+    
+    if (diffDays > 0) {
+      durationStr += `${diffDays}d `;
+    }
+    if (diffHours % 24 > 0) {
+      durationStr += `${diffHours % 24}h `;
+    }
+    if (diffMins % 60 > 0) {
+      durationStr += `${diffMins % 60}m `;
+    }
+    if (diffSecs % 60 > 0) {
+      durationStr += `${diffSecs % 60}s`;
+    }
+    
+    return durationStr.trim() || '0s';
   };
 
   const handleRowClick = (alert) => {
@@ -117,6 +158,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                 <th className="py-4 px-6">Zones</th>
                 <th className="py-4 px-6">Message</th>
                 <th className="py-4 px-6">Time</th>
+                <th className="py-4 px-6 text-center">Pending</th>
                 <th className="py-4 px-6 text-center">Action</th>
               </tr>
             </thead>
@@ -165,6 +207,16 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                     </td>
                     <td className="py-4 px-6 text-center">
                       {isPending ? (
+                        <span className="inline-flex items-center gap-1.5 text-yellow-400 font-mono text-xs font-bold whitespace-nowrap">
+                          <Timer className="w-3.5 h-3.5" />
+                          {getPendingDuration(alert.receivedAt)}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-slate-500 font-mono">—</span>
+                      )}
+                    </td>
+                    <td className="py-4 px-6 text-center">
+                      {isPending ? (
                         <button
                           onClick={(e) => handleResolveClick(e, alert)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 hover:border-emerald-500/50 rounded-lg text-xs font-mono transition-all"
@@ -184,7 +236,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
           </table>
         </div>
 
-        {/* Mobile Cards */}
+        {/* Mobile Cards - UPDATED with Pending Duration */}
         <div className="lg:hidden divide-y divide-slate-800">
           {alerts.map((alert) => {
             const isPending = alert.status === 'PENDING';
@@ -229,9 +281,19 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                   {renderZoneBadges(alert.zoneNumbers)}
                 </div>
 
-                <div className="flex items-center gap-1 text-slate-400 text-xs">
-                  <Clock className="w-3 h-3 flex-shrink-0" />
-                  {new Date(alert.receivedAt).toLocaleString()}
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1 text-slate-400">
+                    <Clock className="w-3 h-3 flex-shrink-0" />
+                    {new Date(alert.receivedAt).toLocaleString()}
+                  </div>
+                  
+                  {/* ===== PENDING DURATION ON MOBILE ===== */}
+                  {isPending && (
+                    <div className="flex items-center gap-1 text-yellow-400 font-mono font-bold">
+                      <Timer className="w-3 h-3" />
+                      {getPendingDuration(alert.receivedAt)}
+                    </div>
+                  )}
                 </div>
 
                 {/* Mobile Resolve Button */}
