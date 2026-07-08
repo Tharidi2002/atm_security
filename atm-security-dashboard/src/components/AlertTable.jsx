@@ -24,30 +24,33 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
   }, []);
 
   const getMessageIcon = (alertType) => {
-    if (!alertType) return <MessageSquare className="w-4 h-4 text-slate-400" />;
+    if (!alertType) return <MessageSquare className="w-4 h-4 text-slate-400 flex-shrink-0" />;
     
     const lower = alertType.toLowerCase();
+    
+    if (lower.includes('call incoming') || lower.includes('call from')) {
+      return <Phone className="w-4 h-4 text-blue-400 flex-shrink-0" />;
+    }
     if (lower.includes('call') || lower.includes('voice') || lower.includes('incoming')) {
-      return <Phone className="w-4 h-4 text-blue-400" />;
+      return <Phone className="w-4 h-4 text-blue-400 flex-shrink-0" />;
     }
     if (lower.includes('alarm') || lower.includes('alert')) {
-      return <Bell className="w-4 h-4 text-red-400" />;
+      return <Bell className="w-4 h-4 text-red-400 flex-shrink-0" />;
     }
     if (lower.includes('zone')) {
-      return <AlertTriangle className="w-4 h-4 text-amber-400" />;
+      return <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />;
     }
-    return <MessageSquare className="w-4 h-4 text-slate-400" />;
+    return <MessageSquare className="w-4 h-4 text-slate-400 flex-shrink-0" />;
   };
 
   const getMessagePreview = (alertType) => {
     if (!alertType) return 'No message';
-    if (alertType.length > 50) {
-      return alertType.substring(0, 50) + '...';
+    if (alertType.length > 35) {
+      return alertType.substring(0, 35) + '...';
     }
     return alertType;
   };
 
-  // ===== NEW: Calculate pending duration =====
   const getPendingDuration = (receivedAt) => {
     if (!receivedAt) return 'N/A';
     const now = new Date();
@@ -106,13 +109,13 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
 
   const renderZoneBadges = (zoneNumbers) => {
     if (!zoneNumbers || zoneNumbers === '00' || zoneNumbers === '0') {
-      return <span className="text-slate-500 text-xs">No Zone</span>;
+      return <span className="text-slate-500 text-[10px]">No Zone</span>;
     }
 
     const zones = zoneNumbers.split(',').map(z => z.trim()).filter(z => z !== '');
     
     if (zones.length === 0) {
-      return <span className="text-slate-500 text-xs">No Zone</span>;
+      return <span className="text-slate-500 text-[10px]">No Zone</span>;
     }
 
     return (
@@ -120,7 +123,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
         {zones.map((zone, index) => (
           <span 
             key={index}
-            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 whitespace-nowrap"
+            className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 whitespace-nowrap"
           >
             Z{String(zone).padStart(2, '0')}
           </span>
@@ -147,19 +150,19 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
         ref={tableContainerRef}
         className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden overflow-y-auto max-h-[600px] scroll-smooth"
       >
-        {/* Desktop Table */}
-        <div className="hidden lg:block">
-          <table className="w-full text-left">
+        {/* ===== DESKTOP TABLE ===== */}
+        <div className="hidden lg:block overflow-x-auto">
+          <table className="w-full text-left min-w-[900px]">
             <thead className="sticky top-0 bg-slate-900/95 text-slate-400 uppercase text-xs tracking-wider border-b border-slate-800 font-mono z-10 backdrop-blur">
               <tr>
-                <th className="py-4 px-6">Status</th>
-                <th className="py-4 px-6">Alarm System</th>
-                <th className="py-4 px-6">Location</th>
-                <th className="py-4 px-6">Zones</th>
-                <th className="py-4 px-6">Message</th>
-                <th className="py-4 px-6">Time</th>
-                <th className="py-4 px-6 text-center">Pending</th>
-                <th className="py-4 px-6 text-center">Action</th>
+                <th className="py-3 px-4 w-[100px]">Status</th>
+                <th className="py-3 px-4 w-[130px]">System</th>
+                <th className="py-3 px-4 w-[130px]">Location</th>
+                <th className="py-3 px-4 w-[100px]">Zones</th>
+                <th className="py-3 px-4 w-[180px]">Message</th>
+                <th className="py-3 px-4 w-[120px]">Time</th>
+                <th className="py-3 px-4 w-[100px] text-center">Pending</th>
+                <th className="py-3 px-4 w-[90px] text-center">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50">
@@ -171,58 +174,60 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                     onClick={() => handleRowClick(alert)}
                     className="hover:bg-slate-900/40 transition-colors cursor-pointer"
                   >
-                    <td className="py-4 px-6">
+                    <td className="py-3 px-4">
                       <StatusBadge status={alert.status} />
                     </td>
-                    <td className="py-4 px-6 font-mono font-bold text-white text-sm">
+                    <td className="py-3 px-4 font-mono font-bold text-white text-sm truncate max-w-[130px]">
                       {alert.alarmSystem?.systemCode || 'UNKNOWN'}
                     </td>
-                    <td className="py-4 px-6 text-slate-300 text-sm">
-                      <div className="flex items-center gap-1">
+                    <td className="py-3 px-4 text-slate-300 text-sm">
+                      <div className="flex items-center gap-1 min-w-0">
                         <MapPin className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                        <span className="truncate max-w-[150px]">
+                        <span className="truncate">
                           {alert.alarmSystem?.location || 'Unknown'}
                         </span>
                       </div>
                     </td>
-                    <td className="py-4 px-6">
+                    <td className="py-3 px-4">
                       {renderZoneBadges(alert.zoneNumbers)}
                     </td>
-                    <td className="py-4 px-6">
+                    <td className="py-3 px-4 max-w-[180px]">
                       <button
                         onClick={(e) => handleMessageClick(e, alert)}
-                        className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors group max-w-xs"
+                        className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors group w-full min-w-0"
                       >
-                        {getMessageIcon(alert.alertType)}
-                        <span className="text-sm font-mono group-hover:text-blue-400 transition-colors truncate">
+                        <span className="flex-shrink-0">
+                          {getMessageIcon(alert.alertType)}
+                        </span>
+                        <span className="text-sm font-mono group-hover:text-blue-400 transition-colors truncate block w-full">
                           {getMessagePreview(alert.alertType)}
                         </span>
                       </button>
                     </td>
-                    <td className="py-4 px-6 text-slate-400 text-xs font-mono whitespace-nowrap">
+                    <td className="py-3 px-4 text-slate-400 text-xs font-mono whitespace-nowrap">
                       <div className="flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                        {new Date(alert.receivedAt).toLocaleString()}
+                        {new Date(alert.receivedAt).toLocaleTimeString()}
                       </div>
                     </td>
-                    <td className="py-4 px-6 text-center">
+                    <td className="py-3 px-4 text-center">
                       {isPending ? (
-                        <span className="inline-flex items-center gap-1.5 text-yellow-400 font-mono text-xs font-bold whitespace-nowrap">
-                          <Timer className="w-3.5 h-3.5" />
+                        <span className="inline-flex items-center gap-1 text-yellow-400 font-mono text-xs font-bold whitespace-nowrap">
+                          <Timer className="w-3.5 h-3.5 flex-shrink-0" />
                           {getPendingDuration(alert.receivedAt)}
                         </span>
                       ) : (
                         <span className="text-[10px] text-slate-500 font-mono">—</span>
                       )}
                     </td>
-                    <td className="py-4 px-6 text-center">
+                    <td className="py-3 px-4 text-center">
                       {isPending ? (
                         <button
                           onClick={(e) => handleResolveClick(e, alert)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 hover:border-emerald-500/50 rounded-lg text-xs font-mono transition-all"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 hover:border-emerald-500/50 rounded-lg text-[10px] font-mono transition-all whitespace-nowrap"
                           title="Resolve this alert"
                         >
-                          <CheckCircle className="w-3.5 h-3.5" />
+                          <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
                           Resolve
                         </button>
                       ) : (
@@ -236,31 +241,110 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
           </table>
         </div>
 
-        {/* Mobile Cards - UPDATED with Pending Duration */}
-        <div className="lg:hidden divide-y divide-slate-800">
+        {/* ===== TABLET VIEW ===== */}
+        <div className="hidden sm:block lg:hidden overflow-x-auto">
+          <table className="w-full text-left min-w-[650px]">
+            <thead className="sticky top-0 bg-slate-900/95 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 font-mono z-10 backdrop-blur">
+              <tr>
+                <th className="py-2.5 px-3">Status</th>
+                <th className="py-2.5 px-3">System</th>
+                <th className="py-2.5 px-3">Zones</th>
+                <th className="py-2.5 px-3">Message</th>
+                <th className="py-2.5 px-3">Time</th>
+                <th className="py-2.5 px-3 text-center">Pending</th>
+                <th className="py-2.5 px-3 text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/50">
+              {alerts.map((alert) => {
+                const isPending = alert.status === 'PENDING';
+                return (
+                  <tr 
+                    key={alert.id} 
+                    onClick={() => handleRowClick(alert)}
+                    className="hover:bg-slate-900/40 transition-colors cursor-pointer"
+                  >
+                    <td className="py-2.5 px-3">
+                      <StatusBadge status={alert.status} />
+                    </td>
+                    <td className="py-2.5 px-3 font-mono font-bold text-white text-xs truncate max-w-[100px]">
+                      {alert.alarmSystem?.systemCode || 'UNKNOWN'}
+                    </td>
+                    <td className="py-2.5 px-3">
+                      {renderZoneBadges(alert.zoneNumbers)}
+                    </td>
+                    <td className="py-2.5 px-3 max-w-[150px]">
+                      <button
+                        onClick={(e) => handleMessageClick(e, alert)}
+                        className="flex items-center gap-1.5 text-slate-400 hover:text-white transition-colors group w-full min-w-0"
+                      >
+                        <span className="flex-shrink-0">
+                          {getMessageIcon(alert.alertType)}
+                        </span>
+                        <span className="text-xs font-mono group-hover:text-blue-400 transition-colors truncate block w-full">
+                          {getMessagePreview(alert.alertType)}
+                        </span>
+                      </button>
+                    </td>
+                    <td className="py-2.5 px-3 text-slate-400 text-[10px] font-mono whitespace-nowrap">
+                      {new Date(alert.receivedAt).toLocaleTimeString()}
+                    </td>
+                    <td className="py-2.5 px-3 text-center">
+                      {isPending ? (
+                        <span className="text-yellow-400 font-mono text-[10px] font-bold whitespace-nowrap">
+                          {getPendingDuration(alert.receivedAt)}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-slate-500 font-mono">—</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-3 text-center">
+                      {isPending ? (
+                        <button
+                          onClick={(e) => handleResolveClick(e, alert)}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-[10px] font-mono transition-all whitespace-nowrap"
+                          title="Resolve"
+                        >
+                          <CheckCircle className="w-3 h-3 flex-shrink-0" />
+                          Resolve
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-slate-500 font-mono">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ===== MOBILE CARDS ===== */}
+        <div className="sm:hidden divide-y divide-slate-800">
           {alerts.map((alert) => {
             const isPending = alert.status === 'PENDING';
             return (
               <div 
                 key={alert.id}
                 onClick={() => handleRowClick(alert)}
-                className="p-4 hover:bg-slate-900/40 transition-colors cursor-pointer"
+                className="p-3 hover:bg-slate-900/40 transition-colors cursor-pointer space-y-2"
               >
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex items-center gap-2 flex-wrap">
+                {/* Row 1: Status + System + Action */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 flex-wrap min-w-0">
                     <StatusBadge status={alert.status} />
-                    <span className="font-mono font-bold text-white text-sm">
+                    <span className="font-mono font-bold text-white text-xs truncate max-w-[100px]">
                       {alert.alarmSystem?.systemCode || 'UNKNOWN'}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
                     {isPending && (
                       <button
                         onClick={(e) => handleResolveClick(e, alert)}
                         className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg transition-all"
                         title="Resolve"
                       >
-                        <CheckCircle className="w-4 h-4" />
+                        <CheckCircle className="w-3.5 h-3.5" />
                       </button>
                     )}
                     <button
@@ -271,38 +355,51 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                     </button>
                   </div>
                 </div>
-                
-                <div className="flex items-center gap-1 text-slate-400 text-xs mb-1">
-                  <MapPin className="w-3 h-3 flex-shrink-0" />
-                  <span className="truncate">{alert.alarmSystem?.location || 'Unknown'}</span>
-                </div>
 
-                <div className="flex items-center gap-1 mb-1 flex-wrap">
+                {/* Row 2: Location + Zones */}
+                <div className="flex flex-wrap items-center gap-1 text-xs text-slate-400 min-w-0">
+                  <MapPin className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate max-w-[120px]">
+                    {alert.alarmSystem?.location || 'Unknown'}
+                  </span>
+                  <span className="text-slate-600 mx-1 flex-shrink-0">•</span>
                   {renderZoneBadges(alert.zoneNumbers)}
                 </div>
 
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-1 text-slate-400">
-                    <Clock className="w-3 h-3 flex-shrink-0" />
-                    {new Date(alert.receivedAt).toLocaleString()}
+                {/* Row 3: Message Preview + Time */}
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <button
+                    onClick={(e) => handleMessageClick(e, alert)}
+                    className="flex items-center gap-1.5 text-slate-400 hover:text-white transition-colors group min-w-0 flex-1"
+                  >
+                    <span className="flex-shrink-0">
+                      {getMessageIcon(alert.alertType)}
+                    </span>
+                    <span className="truncate font-mono text-[10px] block w-full">
+                      {getMessagePreview(alert.alertType)}
+                    </span>
+                  </button>
+                  <div className="flex items-center gap-1 text-slate-500 text-[10px] font-mono flex-shrink-0">
+                    <Clock className="w-3 h-3" />
+                    {new Date(alert.receivedAt).toLocaleTimeString()}
                   </div>
-                  
-                  {/* ===== PENDING DURATION ON MOBILE ===== */}
-                  {isPending && (
-                    <div className="flex items-center gap-1 text-yellow-400 font-mono font-bold">
-                      <Timer className="w-3 h-3" />
-                      {getPendingDuration(alert.receivedAt)}
-                    </div>
-                  )}
                 </div>
+
+                {/* Row 4: Pending Duration */}
+                {isPending && (
+                  <div className="flex items-center gap-1 text-yellow-400 text-[10px] font-mono font-bold">
+                    <Timer className="w-3 h-3 flex-shrink-0" />
+                    Pending: {getPendingDuration(alert.receivedAt)}
+                  </div>
+                )}
 
                 {/* Mobile Resolve Button */}
                 {isPending && (
                   <button
                     onClick={(e) => handleResolveClick(e, alert)}
-                    className="w-full mt-2 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-mono transition-all flex items-center justify-center gap-2"
+                    className="w-full mt-1 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-[10px] font-mono transition-all flex items-center justify-center gap-1.5"
                   >
-                    <CheckCircle className="w-4 h-4" />
+                    <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
                     Resolve Alert
                   </button>
                 )}
@@ -312,7 +409,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
         </div>
       </div>
 
-      {/* Modals */}
+      {/* ===== MODALS ===== */}
       <AlertModal 
         alert={selectedAlert} 
         isOpen={isModalOpen} 

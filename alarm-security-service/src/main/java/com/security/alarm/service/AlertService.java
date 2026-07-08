@@ -39,34 +39,35 @@ public class AlertService {
 
     // Process incoming SMS
     public AlertLog processIncomingSMS(String fromSimNumber, String smsContent) {
-        AlertLog alertLog = new AlertLog();
-        alertLog.setReceivedAt(LocalDateTime.now());
-        
-        // Check if it's ARMED message
-        String cleanMessage = smsContent;
-        if (fromSimNumber != null && !fromSimNumber.isEmpty()) {
-            cleanMessage = cleanMessage.replace(fromSimNumber, "").trim();
-        }
+    AlertLog alertLog = new AlertLog();
+    alertLog.setReceivedAt(LocalDateTime.now());
+    
+    String cleanMessage = smsContent;
+    if (fromSimNumber != null && !fromSimNumber.isEmpty()) {
+        cleanMessage = cleanMessage.replace(fromSimNumber, "").trim();
+    }
 
-        // Check for ARMED status
-        if (cleanMessage.toUpperCase().contains("ARMED")) {
-            alertLog.setStatus("ARMED");
-        } else {
-            alertLog.setStatus("PENDING");
-        }
+    // ===== NEW: Check if this is a CALL alert =====
+    if (cleanMessage != null && cleanMessage.toLowerCase().contains("call incoming")) {
+        alertLog.setStatus("CALL");
+    } else if (cleanMessage != null && cleanMessage.toUpperCase().contains("ARMED")) {
+        alertLog.setStatus("ARMED");
+    } else {
+        alertLog.setStatus("PENDING");
+    }
 
-        // Find system by SIM number
-        Optional<AlarmSystem> machineOpt = alarmSystemRepository.findBySimNumber(fromSimNumber);
-        
-        if (machineOpt.isPresent()) {
-            alertLog.setAlarmSystem(machineOpt.get());
-        } else {
-            alertLog.setAlarmSystem(null);
-        }
+    // Find system by SIM number
+    Optional<AlarmSystem> machineOpt = alarmSystemRepository.findBySimNumber(fromSimNumber);
+    
+    if (machineOpt.isPresent()) {
+        alertLog.setAlarmSystem(machineOpt.get());
+    } else {
+        alertLog.setAlarmSystem(null);
+    }
 
-        // Extract zone numbers
+    // Extract zone numbers (only if not a call alert)
+    if (!"CALL".equals(alertLog.getStatus())) {
         String zoneNumbers = extractZoneNumbers(smsContent);
-        
         if (!zoneNumbers.isEmpty()) {
             alertLog.setZoneNumbers(zoneNumbers);
             String firstZone = zoneNumbers.split(",")[0].trim();
@@ -79,12 +80,17 @@ public class AlertService {
             alertLog.setZoneNumber(0);
             alertLog.setZoneNumbers("00");
         }
-
-        alertLog.setAlertType(cleanMessage);
-        alertLog.setRawMessage(smsContent);
-        
-        return alertLogRepository.save(alertLog);
+    } else {
+        // Call alerts - no zones
+        alertLog.setZoneNumber(0);
+        alertLog.setZoneNumbers("00");
     }
+
+    alertLog.setAlertType(cleanMessage);
+    alertLog.setRawMessage(smsContent);
+    
+    return alertLogRepository.save(alertLog);
+}
 
     // Extract zone numbers from SMS
     private String extractZoneNumbers(String smsContent) {

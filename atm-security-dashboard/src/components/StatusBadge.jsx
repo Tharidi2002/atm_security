@@ -10,6 +10,16 @@ export default function StatusBadge({ status }) {
     );
   }
   
+  // ===== NEW: CALL status with BLUE color =====
+  if (status === 'CALL') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide bg-blue-500/10 text-blue-400 border border-blue-500/20">
+        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+        📞 CALL
+      </span>
+    );
+  }
+  
   if (status === 'ARMED') {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
