@@ -100,7 +100,9 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
     
     alerts.forEach(alert => {
       const category = getAlertCategory(alert);
-      counts[category] = (counts[category] || 0) + 1;
+      if (counts[category] !== undefined) {
+        counts[category] = (counts[category] || 0) + 1;
+      }
     });
     
     return counts;
@@ -149,7 +151,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
 
   const filteredAlerts = getFilteredAlerts();
 
-  // ===== CALCULATE PENDING DURATION (LIVE) =====
+  // ===== CALCULATE PENDING DURATION =====
   const getPendingDuration = (receivedAt) => {
     if (!receivedAt) return 'N/A';
     const now = currentTime;
@@ -164,131 +166,136 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
     const diffDays = Math.floor(diffHours / 24);
     
     let durationStr = '';
-    
-    if (diffDays > 0) {
-      durationStr += `${diffDays}d `;
-    }
-    if (diffHours % 24 > 0) {
-      durationStr += `${diffHours % 24}h `;
-    }
-    if (diffMins % 60 > 0) {
-      durationStr += `${diffMins % 60}m `;
-    }
-    if (diffSecs % 60 > 0) {
-      durationStr += `${diffSecs % 60}s`;
-    }
+    if (diffDays > 0) durationStr += `${diffDays}d `;
+    if (diffHours % 24 > 0) durationStr += `${diffHours % 24}h `;
+    if (diffMins % 60 > 0) durationStr += `${diffMins % 60}m `;
+    if (diffSecs % 60 > 0) durationStr += `${diffSecs % 60}s`;
     
     return durationStr.trim() || '0s';
   };
 
-  // ===== FILTER DROPDOWN =====
-  const FilterDropdown = () => (
-    <div className="relative">
-      <button
-        onClick={() => {
-          setShowFilterDropdown(!showFilterDropdown);
-          setShowSystemDropdown(false);
-        }}
-        className="flex items-center gap-1 px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-[10px] font-mono text-slate-300 transition-all whitespace-nowrap"
-      >
-        <Filter className="w-3 h-3" />
-        <span className="truncate max-w-[60px]">
-          {filterCategory === 'ALL' ? 'All' : getCategoryShort(filterCategory)}
-        </span>
-        <span className="text-slate-500 text-[9px]">({filterCategory === 'ALL' ? alerts.length : getCategoryCounts[filterCategory] || 0})</span>
-      </button>
-      
-      {showFilterDropdown && (
-        <div className="absolute top-full left-0 mt-1 w-40 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-20 overflow-hidden">
-          <div className="p-1 space-y-0.5">
-            {[
-              { value: 'ALL', label: '📊 All' },
-              { value: 'ZONE_ALARM', label: '🔴 Zone' },
-              { value: 'CALL', label: '📞 Call' },
-              { value: 'ARMED', label: '🟡 ARMED' },
-              { value: 'RESOLVED', label: '✅ Done' },
-              { value: 'OTHER', label: '📌 Other' }
-            ].map((option) => (
-              <button
-                key={option.value}
-                onClick={() => {
-                  setFilterCategory(option.value);
-                  setShowFilterDropdown(false);
-                }}
-                className={`w-full text-left px-3 py-1.5 rounded-lg text-[10px] font-mono transition-all flex items-center justify-between ${
-                  filterCategory === option.value
-                    ? 'bg-red-500/10 text-white border border-red-500/30'
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                }`}
-              >
-                <span>{option.label}</span>
-                <span className="text-[9px] text-slate-500">({getCategoryCounts[option.value] || 0})</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  // ============================================================
+  // ===== FIXED: FILTER DROPDOWN - z-index increased =====
+  // ============================================================
+  const FilterDropdown = () => {
+    const categories = [
+      { value: 'ALL', label: '📊 All' },
+      { value: 'ZONE_ALARM', label: '🔴 Zone' },
+      { value: 'CALL', label: '📞 Call' },
+      { value: 'ARMED', label: '🟡 ARMED' },
+      { value: 'RESOLVED', label: '✅ Done' },
+      { value: 'OTHER', label: '📌 Other' }
+    ];
 
-  // ===== SYSTEM DROPDOWN =====
-  const SystemDropdown = () => (
-    <div className="relative">
-      <button
-        onClick={() => {
-          setShowSystemDropdown(!showSystemDropdown);
-          setShowFilterDropdown(false);
-        }}
-        className="flex items-center gap-1 px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-[10px] font-mono text-slate-300 transition-all whitespace-nowrap"
-      >
-        <Search className="w-3 h-3" />
-        <span className="truncate max-w-[60px]">
-          {filterSystem === 'ALL' ? 'Systems' : filterSystem}
-        </span>
-        <span className="text-slate-500 text-[9px]">
-          ({filterSystem === 'ALL' ? alerts.length : getSystemCounts[filterSystem] || 0})
-        </span>
-      </button>
-      
-      {showSystemDropdown && (
-        <div className="absolute top-full left-0 mt-1 w-44 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-20 overflow-hidden max-h-48 overflow-y-auto">
-          <div className="p-1 space-y-0.5">
-            <button
-              onClick={() => {
-                setFilterSystem('ALL');
-                setShowSystemDropdown(false);
-              }}
-              className={`w-full text-left px-3 py-1.5 rounded-lg text-[10px] font-mono transition-all flex items-center justify-between ${
-                filterSystem === 'ALL'
-                  ? 'bg-red-500/10 text-white border border-red-500/30'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              <span>📊 All</span>
-              <span className="text-[9px] text-slate-500">({alerts.length})</span>
-            </button>
-            {getUniqueSystems.filter(s => s !== 'ALL').map((system) => (
-              <button
-                key={system}
-                onClick={() => {
-                  setFilterSystem(system);
-                  setShowSystemDropdown(false);
-                }}
-                className={`w-full text-left px-3 py-1.5 rounded-lg text-[10px] font-mono transition-all flex items-center justify-between ${
-                  filterSystem === system
-                    ? 'bg-red-500/10 text-white border border-red-500/30'
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                }`}
-              >
-                <span className="truncate max-w-[100px]">{system}</span>
-                <span className="text-[9px] text-slate-500 flex-shrink-0">({getSystemCounts[system] || 0})</span>
-              </button>
-            ))}
+    return (
+      <div className="relative" style={{ zIndex: 9999 }}>
+        <button
+          onClick={() => {
+            setShowFilterDropdown(!showFilterDropdown);
+            setShowSystemDropdown(false);
+          }}
+          className="flex items-center gap-1 px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-[10px] font-mono text-slate-300 transition-all whitespace-nowrap"
+        >
+          <Filter className="w-3 h-3" />
+          <span className="truncate max-w-[50px]">
+            {filterCategory === 'ALL' ? 'All' : getCategoryShort(filterCategory)}
+          </span>
+          <span className="text-slate-500 text-[9px]">({filterCategory === 'ALL' ? alerts.length : getCategoryCounts[filterCategory] || 0})</span>
+        </button>
+        
+        {showFilterDropdown && (
+          <div 
+            className="absolute top-full left-0 mt-1 w-40 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden"
+            style={{ 
+              zIndex: 9999,
+              minWidth: '150px',
+              maxHeight: '300px',
+              overflowY: 'auto'
+            }}
+          >
+            <div className="p-1 space-y-0.5">
+              {categories.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => {
+                    setFilterCategory(option.value);
+                    setShowFilterDropdown(false);
+                  }}
+                  className={`w-full text-left px-3 py-1.5 rounded-lg text-[10px] font-mono transition-all flex items-center justify-between ${
+                    filterCategory === option.value
+                      ? 'bg-red-500/10 text-white border border-red-500/30'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  }`}
+                >
+                  <span>{option.label}</span>
+                  <span className="text-[9px] text-slate-500 flex-shrink-0 ml-2">({getCategoryCounts[option.value] || 0})</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
-  );
+        )}
+      </div>
+    );
+  };
+
+  // ============================================================
+  // ===== FIXED: SYSTEM DROPDOWN - z-index increased =====
+  // ============================================================
+  const SystemDropdown = () => {
+    const systems = getUniqueSystems;
+
+    return (
+      <div className="relative" style={{ zIndex: 9998 }}>
+        <button
+          onClick={() => {
+            setShowSystemDropdown(!showSystemDropdown);
+            setShowFilterDropdown(false);
+          }}
+          className="flex items-center gap-1 px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-[10px] font-mono text-slate-300 transition-all whitespace-nowrap"
+        >
+          <Search className="w-3 h-3" />
+          <span className="truncate max-w-[50px]">
+            {filterSystem === 'ALL' ? 'Systems' : filterSystem}
+          </span>
+          <span className="text-slate-500 text-[9px]">
+            ({filterSystem === 'ALL' ? alerts.length : getSystemCounts[filterSystem] || 0})
+          </span>
+        </button>
+        
+        {showSystemDropdown && (
+          <div 
+            className="absolute top-full left-0 mt-1 w-48 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden"
+            style={{ 
+              zIndex: 9998,
+              minWidth: '180px',
+              maxHeight: '300px',
+              overflowY: 'auto'
+            }}
+          >
+            <div className="p-1 space-y-0.5">
+              {systems.map((system) => (
+                <button
+                  key={system}
+                  onClick={() => {
+                    setFilterSystem(system);
+                    setShowSystemDropdown(false);
+                  }}
+                  className={`w-full text-left px-3 py-1.5 rounded-lg text-[10px] font-mono transition-all flex items-center justify-between ${
+                    filterSystem === system
+                      ? 'bg-red-500/10 text-white border border-red-500/30'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  }`}
+                >
+                  <span className="truncate max-w-[120px]">{system === 'ALL' ? '📊 All Systems' : system}</span>
+                  <span className="text-[9px] text-slate-500 flex-shrink-0 ml-2">({getSystemCounts[system] || 0})</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const getMessageIcon = (alertType) => {
     if (!alertType) return <MessageSquare className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />;
@@ -361,7 +368,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
 
   return (
     <>
-      <div ref={tableContainerRef} className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden flex flex-col max-h-[600px]">
+      <div ref={tableContainerRef} className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden flex flex-col">
         
         {/* ===== FILTER BAR ===== */}
         <div className="sticky top-0 z-20 bg-slate-900/95 border-b border-slate-800 p-2 flex flex-wrap items-center justify-between gap-1.5 backdrop-blur flex-shrink-0">
@@ -397,22 +404,22 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
           </div>
         </div>
 
-        {/* ===== TABLE ===== */}
-        <div className="overflow-y-auto flex-1">
+        {/* ===== TABLE WRAPPER - Fixed height ===== */}
+        <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 320px)', minHeight: '200px' }}>
           
-          {/* DESKTOP (lg+) */}
+          {/* DESKTOP */}
           <div className="hidden lg:block">
             <table className="w-full text-left min-w-[700px]">
               <thead className="sticky top-0 bg-slate-900/95 text-slate-400 uppercase text-[9px] tracking-wider border-b border-slate-800 font-mono z-10 backdrop-blur">
                 <tr>
                   <th className="py-1.5 px-2 w-[65px]">Status</th>
                   <th className="py-1.5 px-2 w-[80px]">System</th>
-                  <th className="py-1.5 px-2 w-[50px]">Cat</th>
-                  <th className="py-1.5 px-2 w-[70px]">Zones</th>
+                  <th className="py-1.5 px-2 w-[45px]">Cat</th>
+                  <th className="py-1.5 px-2 w-[60px]">Zones</th>
                   <th className="py-1.5 px-2 w-[130px]">Message</th>
                   <th className="py-1.5 px-2 w-[70px]">Time</th>
                   <th className="py-1.5 px-2 w-[70px] text-center">Pending</th>
-                  <th className="py-1.5 px-2 w-[60px] text-center">Action</th>
+                  <th className="py-1.5 px-2 w-[55px] text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/50">
@@ -455,7 +462,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                       <td className="py-1.5 px-2 text-center">
                         {isPending ? (
                           <button onClick={(e) => handleResolveClick(e, alert)} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-[8px] font-mono transition-all whitespace-nowrap">
-                            <CheckCircle className="w-2.5 h-2.5" /> Resolve
+                            <CheckCircle className="w-2.5 h-2.5" /> ✓
                           </button>
                         ) : (
                           <span className="text-[8px] text-slate-500 font-mono">—</span>
@@ -468,7 +475,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
             </table>
           </div>
 
-          {/* TABLET (sm to lg) */}
+          {/* TABLET */}
           <div className="hidden sm:block lg:hidden">
             <table className="w-full text-left min-w-[500px]">
               <thead className="sticky top-0 bg-slate-900/95 text-slate-400 uppercase text-[8px] tracking-wider border-b border-slate-800 font-mono z-10 backdrop-blur">
@@ -476,10 +483,9 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                   <th className="py-1 px-1.5 w-[55px]">Status</th>
                   <th className="py-1 px-1.5 w-[60px]">System</th>
                   <th className="py-1 px-1.5 w-[35px]">Cat</th>
-                  <th className="py-1 px-1.5 w-[55px]">Zones</th>
+                  <th className="py-1 px-1.5 w-[50px]">Zones</th>
                   <th className="py-1 px-1.5 w-[100px]">Message</th>
                   <th className="py-1 px-1.5 w-[55px]">Time</th>
-                  <th className="py-1 px-1.5 w-[55px] text-center">Pending</th>
                   <th className="py-1 px-1.5 w-[50px] text-center">Action</th>
                 </tr>
               </thead>
@@ -512,18 +518,8 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                       </td>
                       <td className="py-1 px-1.5 text-center">
                         {isPending ? (
-                          <span className="inline-flex items-center gap-0.5 text-yellow-400 font-mono text-[8px] font-bold whitespace-nowrap">
-                            <Timer className="w-2 h-2" />
-                            {getPendingDuration(alert.receivedAt)}
-                          </span>
-                        ) : (
-                          <span className="text-[7px] text-slate-500 font-mono">—</span>
-                        )}
-                      </td>
-                      <td className="py-1 px-1.5 text-center">
-                        {isPending ? (
                           <button onClick={(e) => handleResolveClick(e, alert)} className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-[7px] font-mono transition-all whitespace-nowrap">
-                            <CheckCircle className="w-2 h-2" /> Resolve
+                            <CheckCircle className="w-2 h-2" /> ✓
                           </button>
                         ) : (
                           <span className="text-[7px] text-slate-500 font-mono">—</span>
@@ -536,7 +532,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
             </table>
           </div>
 
-          {/* MOBILE CARDS (sm and below) */}
+          {/* MOBILE */}
           <div className="sm:hidden divide-y divide-slate-800">
             {filteredAlerts.map((alert) => {
               const isPending = alert.status === 'PENDING';
@@ -546,7 +542,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1 flex-wrap min-w-0">
                       <StatusBadge status={alert.status} />
-                      <span className="font-mono font-bold text-white text-[9px] truncate max-w-[60px]">
+                      <span className="font-mono font-bold text-white text-[9px] truncate max-w-[50px]">
                         {alert.alarmSystem?.systemCode || 'UNKNOWN'}
                       </span>
                       <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[7px] font-mono border ${getCategoryColor(category)}`}>
@@ -567,7 +563,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
 
                   <div className="flex flex-wrap items-center gap-0.5 text-[9px] text-slate-400 min-w-0">
                     <MapPin className="w-2.5 h-2.5 flex-shrink-0" />
-                    <span className="truncate max-w-[80px]">{alert.alarmSystem?.location || 'Unknown'}</span>
+                    <span className="truncate max-w-[70px]">{alert.alarmSystem?.location || 'Unknown'}</span>
                     <span className="text-slate-600 mx-0.5">•</span>
                     {renderZoneBadges(alert.zoneNumbers)}
                   </div>
@@ -587,14 +583,8 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                   {isPending && (
                     <div className="flex items-center gap-0.5 text-yellow-400 text-[8px] font-mono font-bold">
                       <Timer className="w-2.5 h-2.5" />
-                      Pending: {getPendingDuration(alert.receivedAt)}
+                      {getPendingDuration(alert.receivedAt)}
                     </div>
-                  )}
-
-                  {isPending && (
-                    <button onClick={(e) => handleResolveClick(e, alert)} className="w-full mt-0.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-[8px] font-mono transition-all flex items-center justify-center gap-1">
-                      <CheckCircle className="w-2.5 h-2.5" /> Resolve Alert
-                    </button>
                   )}
                 </div>
               );
