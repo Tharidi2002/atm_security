@@ -38,7 +38,6 @@ public class AdminController {
 
     // ========== USER MANAGEMENT ==========
 
-    // 1. Get all users
     @GetMapping("/users")
     public ResponseEntity<List<Map<String, Object>>> getUsers() {
         List<User> users = userRepository.findAll();
@@ -66,7 +65,6 @@ public class AdminController {
         return ResponseEntity.ok(response);
     }
 
-    // 2. Create user
     @PostMapping("/users")
     public ResponseEntity<?> createUser(@RequestBody User newUser) {
         if (newUser.getUsername() == null || newUser.getPassword() == null || newUser.getRole() == null) {
@@ -81,7 +79,6 @@ public class AdminController {
         return ResponseEntity.ok(saved);
     }
 
-    // 3. Assign systems to a user
     @PostMapping("/users/{userId}/assign")
     public ResponseEntity<?> assignSystems(@PathVariable Long userId, @RequestBody Map<String, List<Long>> payload) {
         Optional<User> userOpt = userRepository.findById(userId);
@@ -107,9 +104,9 @@ public class AdminController {
         return ResponseEntity.ok("Systems assigned successfully");
     }
 
-    // ========== ALARM SYSTEM MANAGEMENT - COMPLETE CRUD ==========
+    // ========== ALARM SYSTEM MANAGEMENT ==========
 
-    // 4. Generate next system code
+    // ===== FIXED: Generate next system code safely =====
     private String generateNextSystemCode() {
         Optional<String> latestCodeOpt = alarmSystemRepository.findLatestSystemCode();
         
@@ -118,28 +115,24 @@ public class AdminController {
         }
         
         String latestCode = latestCodeOpt.get();
-        // Extract number from "ALARM-Z8B-XX"
-        String[] parts = latestCode.split("-");
-        if (parts.length >= 3) {
-            try {
+        try {
+            String[] parts = latestCode.split("-");
+            if (parts.length >= 3) {
                 int lastNumber = Integer.parseInt(parts[2]);
                 int nextNumber = lastNumber + 1;
-                // Format with leading zeros (01, 02, ... 99)
                 return String.format("ALARM-Z8B-%02d", nextNumber);
-            } catch (NumberFormatException e) {
-                return "ALARM-Z8B-01";
             }
+        } catch (NumberFormatException e) {
+            // If parsing fails, start from 01
         }
         return "ALARM-Z8B-01";
     }
 
-    // 5. Get all alarm systems
     @GetMapping("/systems")
     public ResponseEntity<List<AlarmSystem>> getSystems() {
         return ResponseEntity.ok(alarmSystemRepository.findAll());
     }
 
-    // 6. Create Alarm System - Auto-generate system code
     @PostMapping("/systems")
     public ResponseEntity<?> createSystem(@RequestBody AlarmSystem system) {
         // Validate required fields
@@ -158,9 +151,21 @@ public class AdminController {
         // Auto-generate system code
         String newSystemCode = generateNextSystemCode();
         
-        // Check if generated code already exists (safety check)
-        if (alarmSystemRepository.findBySystemCode(newSystemCode).isPresent()) {
-            return ResponseEntity.badRequest().body("System code generation failed. Please try again.");
+        // Safety check - if code already exists, try next
+        int counter = 0;
+        while (alarmSystemRepository.findBySystemCode(newSystemCode).isPresent() && counter < 100) {
+            try {
+                String[] parts = newSystemCode.split("-");
+                if (parts.length >= 3) {
+                    int num = Integer.parseInt(parts[2]);
+                    newSystemCode = String.format("ALARM-Z8B-%02d", num + 1);
+                } else {
+                    newSystemCode = "ALARM-Z8B-01";
+                }
+            } catch (NumberFormatException e) {
+                newSystemCode = "ALARM-Z8B-01";
+            }
+            counter++;
         }
 
         AlarmSystem newSystem = new AlarmSystem();
@@ -174,7 +179,6 @@ public class AdminController {
         return ResponseEntity.ok(saved);
     }
 
-    // 7. Get system by ID
     @GetMapping("/systems/{id}")
     public ResponseEntity<?> getSystemById(@PathVariable Long id) {
         Optional<AlarmSystem> systemOpt = alarmSystemRepository.findById(id);
@@ -184,7 +188,6 @@ public class AdminController {
         return ResponseEntity.ok(systemOpt.get());
     }
 
-    // 8. Update Alarm System (Location, SIM, Status)
     @PutMapping("/systems/{id}")
     public ResponseEntity<?> updateSystem(@PathVariable Long id, @RequestBody AlarmSystem updated) {
         Optional<AlarmSystem> existingOpt = alarmSystemRepository.findById(id);
@@ -194,12 +197,10 @@ public class AdminController {
 
         AlarmSystem existing = existingOpt.get();
 
-        // Update location if provided
         if (updated.getLocation() != null && !updated.getLocation().trim().isEmpty()) {
             existing.setLocation(updated.getLocation().trim());
         }
 
-        // Update SIM number if provided and not duplicate
         if (updated.getSimNumber() != null && !updated.getSimNumber().trim().isEmpty()) {
             String newSim = updated.getSimNumber().trim();
             Optional<AlarmSystem> simCheck = alarmSystemRepository.findBySimNumber(newSim);
@@ -209,18 +210,15 @@ public class AdminController {
             existing.setSimNumber(newSim);
         }
 
-        // Update status if provided
         if (updated.getStatus() != null && !updated.getStatus().equalsIgnoreCase(existing.getStatus())) {
             existing.setStatus(updated.getStatus());
             existing.setLastStatusChangedAt(LocalDateTime.now());
         }
 
-        // System code cannot be changed (auto-generated)
         AlarmSystem saved = alarmSystemRepository.save(existing);
         return ResponseEntity.ok(saved);
     }
 
-    // 9. Toggle Alarm System Status (ACTIVE/INACTIVE)
     @PatchMapping("/systems/{id}/status")
     public ResponseEntity<?> toggleSystemStatus(@PathVariable Long id, @RequestBody Map<String, String> payload) {
         Optional<AlarmSystem> existingOpt = alarmSystemRepository.findById(id);
@@ -247,16 +245,12 @@ public class AdminController {
         return ResponseEntity.ok(existing);
     }
 
-    // 10. Delete Alarm System
     @DeleteMapping("/systems/{id}")
     public ResponseEntity<?> deleteSystem(@PathVariable Long id) {
         Optional<AlarmSystem> existingOpt = alarmSystemRepository.findById(id);
         if (existingOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        
-        // Check if system is assigned to any user
-        // (Optional: Add check here if needed)
         
         alarmSystemRepository.deleteById(id);
         return ResponseEntity.ok("System deleted successfully");

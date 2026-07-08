@@ -10,7 +10,7 @@ public interface AlarmSystemRepository extends JpaRepository<AlarmSystem, Long> 
     
     Optional<AlarmSystem> findBySystemCode(String systemCode);
     
-    // Get the latest system code to generate next number
-    @Query("SELECT a.systemCode FROM AlarmSystem a WHERE a.systemCode LIKE 'ALARM-Z8B-%' ORDER BY a.id DESC")
+    // ===== FIXED: Use LIMIT 1 to avoid multiple results =====
+    @Query(value = "SELECT system_code FROM alarm_systems WHERE system_code LIKE 'ALARM-Z8B-%' ORDER BY id DESC LIMIT 1", nativeQuery = true)
     Optional<String> findLatestSystemCode();
 }
