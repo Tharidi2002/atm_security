@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { MapPin, Clock, MessageSquare, Phone, Bell, AlertTriangle, CheckCircle, Timer } from 'lucide-react';
+import { MapPin, MessageSquare, Phone, Bell, AlertTriangle, CheckCircle, Timer, Filter, X, Search } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import AlertModal from './AlertModal';
 import AlertDetailsPanel from './AlertDetailsPanel';
@@ -13,47 +13,146 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [resolveAlertData, setResolveAlertData] = useState(null);
   const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
-  const [, setForceUpdate] = useState({});
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // ===== FILTER STATES =====
+  const [filterCategory, setFilterCategory] = useState('ALL');
+  const [filterSystem, setFilterSystem] = useState('ALL');
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [showSystemDropdown, setShowSystemDropdown] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Update every second for live pending duration
   useEffect(() => {
     const interval = setInterval(() => {
-      setForceUpdate({});
+      setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  const getMessageIcon = (alertType) => {
-    if (!alertType) return <MessageSquare className="w-4 h-4 text-slate-400 flex-shrink-0" />;
+  // ===== CATEGORIZE ALERTS =====
+  const getAlertCategory = (alert) => {
+    const alertType = alert.alertType || '';
+    const status = alert.status || '';
+    const lowerType = alertType.toLowerCase();
     
-    const lower = alertType.toLowerCase();
+    if (lowerType.includes('call incoming') || lowerType.includes('call from') || 
+        lowerType.includes('incoming call') || status === 'CALL') {
+      return 'CALL';
+    }
     
-    if (lower.includes('call incoming') || lower.includes('call from')) {
-      return <Phone className="w-4 h-4 text-blue-400 flex-shrink-0" />;
+    if (lowerType.includes('armed') || status === 'ARMED') {
+      return 'ARMED';
     }
-    if (lower.includes('call') || lower.includes('voice') || lower.includes('incoming')) {
-      return <Phone className="w-4 h-4 text-blue-400 flex-shrink-0" />;
+    
+    if (status === 'RESOLVED') {
+      return 'RESOLVED';
     }
-    if (lower.includes('alarm') || lower.includes('alert')) {
-      return <Bell className="w-4 h-4 text-red-400 flex-shrink-0" />;
+    
+    if (lowerType.includes('zone') || lowerType.includes('alarm')) {
+      return 'ZONE_ALARM';
     }
-    if (lower.includes('zone')) {
-      return <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />;
-    }
-    return <MessageSquare className="w-4 h-4 text-slate-400 flex-shrink-0" />;
+    
+    return 'OTHER';
   };
 
-  const getMessagePreview = (alertType) => {
-    if (!alertType) return 'No message';
-    if (alertType.length > 35) {
-      return alertType.substring(0, 35) + '...';
+  const getCategoryColor = (category) => {
+    switch(category) {
+      case 'CALL': return 'text-blue-400 bg-blue-500/10 border-blue-500/20';
+      case 'ARMED': return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
+      case 'RESOLVED': return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+      case 'ZONE_ALARM': return 'text-red-400 bg-red-500/10 border-red-500/20';
+      default: return 'text-slate-400 bg-slate-500/10 border-slate-500/20';
     }
-    return alertType;
   };
 
+  const getCategoryShort = (category) => {
+    switch(category) {
+      case 'CALL': return 'Call';
+      case 'ARMED': return 'ARMED';
+      case 'RESOLVED': return 'Done';
+      case 'ZONE_ALARM': return 'Zone';
+      default: return 'Other';
+    }
+  };
+
+  // ===== GET UNIQUE SYSTEMS =====
+  const getUniqueSystems = useMemo(() => {
+    const systems = new Set();
+    alerts.forEach(alert => {
+      if (alert.alarmSystem?.systemCode) {
+        systems.add(alert.alarmSystem.systemCode);
+      }
+    });
+    return ['ALL', ...Array.from(systems)];
+  }, [alerts]);
+
+  // ===== GET CATEGORY COUNTS =====
+  const getCategoryCounts = useMemo(() => {
+    const counts = {
+      ALL: alerts.length,
+      CALL: 0,
+      ARMED: 0,
+      RESOLVED: 0,
+      ZONE_ALARM: 0,
+      OTHER: 0
+    };
+    
+    alerts.forEach(alert => {
+      const category = getAlertCategory(alert);
+      counts[category] = (counts[category] || 0) + 1;
+    });
+    
+    return counts;
+  }, [alerts]);
+
+  // ===== GET SYSTEM COUNTS =====
+  const getSystemCounts = useMemo(() => {
+    const counts = {};
+    alerts.forEach(alert => {
+      const system = alert.alarmSystem?.systemCode || 'UNKNOWN';
+      counts[system] = (counts[system] || 0) + 1;
+    });
+    return counts;
+  }, [alerts]);
+
+  // ===== FILTER ALERTS =====
+  const getFilteredAlerts = () => {
+    let filtered = alerts;
+    
+    if (filterCategory !== 'ALL') {
+      filtered = filtered.filter(alert => getAlertCategory(alert) === filterCategory);
+    }
+    
+    if (filterSystem !== 'ALL') {
+      filtered = filtered.filter(alert => 
+        (alert.alarmSystem?.systemCode || 'UNKNOWN') === filterSystem
+      );
+    }
+    
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(alert => {
+        const systemCode = (alert.alarmSystem?.systemCode || '').toLowerCase();
+        const location = (alert.alarmSystem?.location || '').toLowerCase();
+        const message = (alert.alertType || '').toLowerCase();
+        const zones = (alert.zoneNumbers || '').toLowerCase();
+        return systemCode.includes(query) || 
+               location.includes(query) || 
+               message.includes(query) || 
+               zones.includes(query);
+      });
+    }
+    
+    return filtered;
+  };
+
+  const filteredAlerts = getFilteredAlerts();
+
+  // ===== CALCULATE PENDING DURATION (LIVE) =====
   const getPendingDuration = (receivedAt) => {
     if (!receivedAt) return 'N/A';
-    const now = new Date();
+    const now = currentTime;
     const received = new Date(receivedAt);
     const diffMs = now - received;
     
@@ -80,6 +179,130 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
     }
     
     return durationStr.trim() || '0s';
+  };
+
+  // ===== FILTER DROPDOWN =====
+  const FilterDropdown = () => (
+    <div className="relative">
+      <button
+        onClick={() => {
+          setShowFilterDropdown(!showFilterDropdown);
+          setShowSystemDropdown(false);
+        }}
+        className="flex items-center gap-1 px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-[10px] font-mono text-slate-300 transition-all whitespace-nowrap"
+      >
+        <Filter className="w-3 h-3" />
+        <span className="truncate max-w-[60px]">
+          {filterCategory === 'ALL' ? 'All' : getCategoryShort(filterCategory)}
+        </span>
+        <span className="text-slate-500 text-[9px]">({filterCategory === 'ALL' ? alerts.length : getCategoryCounts[filterCategory] || 0})</span>
+      </button>
+      
+      {showFilterDropdown && (
+        <div className="absolute top-full left-0 mt-1 w-40 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-20 overflow-hidden">
+          <div className="p-1 space-y-0.5">
+            {[
+              { value: 'ALL', label: '📊 All' },
+              { value: 'ZONE_ALARM', label: '🔴 Zone' },
+              { value: 'CALL', label: '📞 Call' },
+              { value: 'ARMED', label: '🟡 ARMED' },
+              { value: 'RESOLVED', label: '✅ Done' },
+              { value: 'OTHER', label: '📌 Other' }
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => {
+                  setFilterCategory(option.value);
+                  setShowFilterDropdown(false);
+                }}
+                className={`w-full text-left px-3 py-1.5 rounded-lg text-[10px] font-mono transition-all flex items-center justify-between ${
+                  filterCategory === option.value
+                    ? 'bg-red-500/10 text-white border border-red-500/30'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <span>{option.label}</span>
+                <span className="text-[9px] text-slate-500">({getCategoryCounts[option.value] || 0})</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // ===== SYSTEM DROPDOWN =====
+  const SystemDropdown = () => (
+    <div className="relative">
+      <button
+        onClick={() => {
+          setShowSystemDropdown(!showSystemDropdown);
+          setShowFilterDropdown(false);
+        }}
+        className="flex items-center gap-1 px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-[10px] font-mono text-slate-300 transition-all whitespace-nowrap"
+      >
+        <Search className="w-3 h-3" />
+        <span className="truncate max-w-[60px]">
+          {filterSystem === 'ALL' ? 'Systems' : filterSystem}
+        </span>
+        <span className="text-slate-500 text-[9px]">
+          ({filterSystem === 'ALL' ? alerts.length : getSystemCounts[filterSystem] || 0})
+        </span>
+      </button>
+      
+      {showSystemDropdown && (
+        <div className="absolute top-full left-0 mt-1 w-44 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-20 overflow-hidden max-h-48 overflow-y-auto">
+          <div className="p-1 space-y-0.5">
+            <button
+              onClick={() => {
+                setFilterSystem('ALL');
+                setShowSystemDropdown(false);
+              }}
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-[10px] font-mono transition-all flex items-center justify-between ${
+                filterSystem === 'ALL'
+                  ? 'bg-red-500/10 text-white border border-red-500/30'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+              }`}
+            >
+              <span>📊 All</span>
+              <span className="text-[9px] text-slate-500">({alerts.length})</span>
+            </button>
+            {getUniqueSystems.filter(s => s !== 'ALL').map((system) => (
+              <button
+                key={system}
+                onClick={() => {
+                  setFilterSystem(system);
+                  setShowSystemDropdown(false);
+                }}
+                className={`w-full text-left px-3 py-1.5 rounded-lg text-[10px] font-mono transition-all flex items-center justify-between ${
+                  filterSystem === system
+                    ? 'bg-red-500/10 text-white border border-red-500/30'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <span className="truncate max-w-[100px]">{system}</span>
+                <span className="text-[9px] text-slate-500 flex-shrink-0">({getSystemCounts[system] || 0})</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const getMessageIcon = (alertType) => {
+    if (!alertType) return <MessageSquare className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />;
+    const lower = alertType.toLowerCase();
+    if (lower.includes('call')) return <Phone className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />;
+    if (lower.includes('alarm')) return <Bell className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />;
+    if (lower.includes('zone')) return <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />;
+    return <MessageSquare className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />;
+  };
+
+  const getMessagePreview = (alertType) => {
+    if (!alertType) return '—';
+    if (alertType.length > 25) return alertType.substring(0, 25) + '…';
+    return alertType;
   };
 
   const handleRowClick = (alert) => {
@@ -109,22 +332,14 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
 
   const renderZoneBadges = (zoneNumbers) => {
     if (!zoneNumbers || zoneNumbers === '00' || zoneNumbers === '0') {
-      return <span className="text-slate-500 text-[10px]">No Zone</span>;
+      return <span className="text-slate-500 text-[9px]">—</span>;
     }
-
     const zones = zoneNumbers.split(',').map(z => z.trim()).filter(z => z !== '');
-    
-    if (zones.length === 0) {
-      return <span className="text-slate-500 text-[10px]">No Zone</span>;
-    }
-
+    if (zones.length === 0) return <span className="text-slate-500 text-[9px]">—</span>;
     return (
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-wrap gap-0.5">
         {zones.map((zone, index) => (
-          <span 
-            key={index}
-            className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 whitespace-nowrap"
-          >
+          <span key={index} className="inline-flex items-center px-1 py-0.5 rounded text-[8px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 whitespace-nowrap">
             Z{String(zone).padStart(2, '0')}
           </span>
         ))}
@@ -138,302 +353,270 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
 
   if (!alerts || alerts.length === 0) {
     return (
-      <div className="bg-slate-950 border border-slate-800 rounded-xl p-12 text-center">
-        <div className="text-emerald-400 font-mono text-lg">🎉 System Secure. No alerts.</div>
+      <div className="bg-slate-950 border border-slate-800 rounded-xl p-8 text-center">
+        <div className="text-emerald-400 font-mono text-base">🎉 System Secure. No alerts.</div>
       </div>
     );
   }
 
   return (
     <>
-      <div 
-        ref={tableContainerRef}
-        className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden overflow-y-auto max-h-[600px] scroll-smooth"
-      >
-        {/* ===== DESKTOP TABLE ===== */}
-        <div className="hidden lg:block overflow-x-auto">
-          <table className="w-full text-left min-w-[900px]">
-            <thead className="sticky top-0 bg-slate-900/95 text-slate-400 uppercase text-xs tracking-wider border-b border-slate-800 font-mono z-10 backdrop-blur">
-              <tr>
-                <th className="py-3 px-4 w-[100px]">Status</th>
-                <th className="py-3 px-4 w-[130px]">System</th>
-                <th className="py-3 px-4 w-[130px]">Location</th>
-                <th className="py-3 px-4 w-[100px]">Zones</th>
-                <th className="py-3 px-4 w-[180px]">Message</th>
-                <th className="py-3 px-4 w-[120px]">Time</th>
-                <th className="py-3 px-4 w-[100px] text-center">Pending</th>
-                <th className="py-3 px-4 w-[90px] text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/50">
-              {alerts.map((alert) => {
-                const isPending = alert.status === 'PENDING';
-                return (
-                  <tr 
-                    key={alert.id} 
-                    onClick={() => handleRowClick(alert)}
-                    className="hover:bg-slate-900/40 transition-colors cursor-pointer"
-                  >
-                    <td className="py-3 px-4">
-                      <StatusBadge status={alert.status} />
-                    </td>
-                    <td className="py-3 px-4 font-mono font-bold text-white text-sm truncate max-w-[130px]">
-                      {alert.alarmSystem?.systemCode || 'UNKNOWN'}
-                    </td>
-                    <td className="py-3 px-4 text-slate-300 text-sm">
-                      <div className="flex items-center gap-1 min-w-0">
-                        <MapPin className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                        <span className="truncate">
-                          {alert.alarmSystem?.location || 'Unknown'}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      {renderZoneBadges(alert.zoneNumbers)}
-                    </td>
-                    <td className="py-3 px-4 max-w-[180px]">
-                      <button
-                        onClick={(e) => handleMessageClick(e, alert)}
-                        className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors group w-full min-w-0"
-                      >
-                        <span className="flex-shrink-0">
-                          {getMessageIcon(alert.alertType)}
-                        </span>
-                        <span className="text-sm font-mono group-hover:text-blue-400 transition-colors truncate block w-full">
-                          {getMessagePreview(alert.alertType)}
-                        </span>
-                      </button>
-                    </td>
-                    <td className="py-3 px-4 text-slate-400 text-xs font-mono whitespace-nowrap">
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                        {new Date(alert.receivedAt).toLocaleTimeString()}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      {isPending ? (
-                        <span className="inline-flex items-center gap-1 text-yellow-400 font-mono text-xs font-bold whitespace-nowrap">
-                          <Timer className="w-3.5 h-3.5 flex-shrink-0" />
-                          {getPendingDuration(alert.receivedAt)}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-slate-500 font-mono">—</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      {isPending ? (
-                        <button
-                          onClick={(e) => handleResolveClick(e, alert)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 hover:border-emerald-500/50 rounded-lg text-[10px] font-mono transition-all whitespace-nowrap"
-                          title="Resolve this alert"
-                        >
-                          <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                          Resolve
-                        </button>
-                      ) : (
-                        <span className="text-[10px] text-slate-500 font-mono">—</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* ===== TABLET VIEW ===== */}
-        <div className="hidden sm:block lg:hidden overflow-x-auto">
-          <table className="w-full text-left min-w-[650px]">
-            <thead className="sticky top-0 bg-slate-900/95 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 font-mono z-10 backdrop-blur">
-              <tr>
-                <th className="py-2.5 px-3">Status</th>
-                <th className="py-2.5 px-3">System</th>
-                <th className="py-2.5 px-3">Zones</th>
-                <th className="py-2.5 px-3">Message</th>
-                <th className="py-2.5 px-3">Time</th>
-                <th className="py-2.5 px-3 text-center">Pending</th>
-                <th className="py-2.5 px-3 text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/50">
-              {alerts.map((alert) => {
-                const isPending = alert.status === 'PENDING';
-                return (
-                  <tr 
-                    key={alert.id} 
-                    onClick={() => handleRowClick(alert)}
-                    className="hover:bg-slate-900/40 transition-colors cursor-pointer"
-                  >
-                    <td className="py-2.5 px-3">
-                      <StatusBadge status={alert.status} />
-                    </td>
-                    <td className="py-2.5 px-3 font-mono font-bold text-white text-xs truncate max-w-[100px]">
-                      {alert.alarmSystem?.systemCode || 'UNKNOWN'}
-                    </td>
-                    <td className="py-2.5 px-3">
-                      {renderZoneBadges(alert.zoneNumbers)}
-                    </td>
-                    <td className="py-2.5 px-3 max-w-[150px]">
-                      <button
-                        onClick={(e) => handleMessageClick(e, alert)}
-                        className="flex items-center gap-1.5 text-slate-400 hover:text-white transition-colors group w-full min-w-0"
-                      >
-                        <span className="flex-shrink-0">
-                          {getMessageIcon(alert.alertType)}
-                        </span>
-                        <span className="text-xs font-mono group-hover:text-blue-400 transition-colors truncate block w-full">
-                          {getMessagePreview(alert.alertType)}
-                        </span>
-                      </button>
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-400 text-[10px] font-mono whitespace-nowrap">
-                      {new Date(alert.receivedAt).toLocaleTimeString()}
-                    </td>
-                    <td className="py-2.5 px-3 text-center">
-                      {isPending ? (
-                        <span className="text-yellow-400 font-mono text-[10px] font-bold whitespace-nowrap">
-                          {getPendingDuration(alert.receivedAt)}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-slate-500 font-mono">—</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-3 text-center">
-                      {isPending ? (
-                        <button
-                          onClick={(e) => handleResolveClick(e, alert)}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-[10px] font-mono transition-all whitespace-nowrap"
-                          title="Resolve"
-                        >
-                          <CheckCircle className="w-3 h-3 flex-shrink-0" />
-                          Resolve
-                        </button>
-                      ) : (
-                        <span className="text-[10px] text-slate-500 font-mono">—</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* ===== MOBILE CARDS ===== */}
-        <div className="sm:hidden divide-y divide-slate-800">
-          {alerts.map((alert) => {
-            const isPending = alert.status === 'PENDING';
-            return (
-              <div 
-                key={alert.id}
-                onClick={() => handleRowClick(alert)}
-                className="p-3 hover:bg-slate-900/40 transition-colors cursor-pointer space-y-2"
+      <div ref={tableContainerRef} className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden flex flex-col max-h-[600px]">
+        
+        {/* ===== FILTER BAR ===== */}
+        <div className="sticky top-0 z-20 bg-slate-900/95 border-b border-slate-800 p-2 flex flex-wrap items-center justify-between gap-1.5 backdrop-blur flex-shrink-0">
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-[9px] text-slate-400 font-mono hidden xs:inline">Filter:</span>
+            <FilterDropdown />
+            <SystemDropdown />
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="🔍"
+                className="w-16 xs:w-24 sm:w-32 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-[10px] font-mono text-white placeholder-slate-500 focus:outline-none focus:border-red-500/50 transition-all"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 text-[9px] text-slate-500 font-mono flex-wrap">
+            <span><span className="text-white font-bold">{filteredAlerts.length}</span>/{alerts.length}</span>
+            {(filterCategory !== 'ALL' || filterSystem !== 'ALL' || searchQuery) && (
+              <button
+                onClick={() => { setFilterCategory('ALL'); setFilterSystem('ALL'); setSearchQuery(''); }}
+                className="flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors text-[8px]"
               >
-                {/* Row 1: Status + System + Action */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 flex-wrap min-w-0">
-                    <StatusBadge status={alert.status} />
-                    <span className="font-mono font-bold text-white text-xs truncate max-w-[100px]">
-                      {alert.alarmSystem?.systemCode || 'UNKNOWN'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {isPending && (
-                      <button
-                        onClick={(e) => handleResolveClick(e, alert)}
-                        className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg transition-all"
-                        title="Resolve"
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" />
+                <X className="w-2 h-2" /> Clear
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ===== TABLE ===== */}
+        <div className="overflow-y-auto flex-1">
+          
+          {/* DESKTOP (lg+) */}
+          <div className="hidden lg:block">
+            <table className="w-full text-left min-w-[700px]">
+              <thead className="sticky top-0 bg-slate-900/95 text-slate-400 uppercase text-[9px] tracking-wider border-b border-slate-800 font-mono z-10 backdrop-blur">
+                <tr>
+                  <th className="py-1.5 px-2 w-[65px]">Status</th>
+                  <th className="py-1.5 px-2 w-[80px]">System</th>
+                  <th className="py-1.5 px-2 w-[50px]">Cat</th>
+                  <th className="py-1.5 px-2 w-[70px]">Zones</th>
+                  <th className="py-1.5 px-2 w-[130px]">Message</th>
+                  <th className="py-1.5 px-2 w-[70px]">Time</th>
+                  <th className="py-1.5 px-2 w-[70px] text-center">Pending</th>
+                  <th className="py-1.5 px-2 w-[60px] text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/50">
+                {filteredAlerts.map((alert) => {
+                  const isPending = alert.status === 'PENDING';
+                  const category = getAlertCategory(alert);
+                  return (
+                    <tr key={alert.id} onClick={() => handleRowClick(alert)} className="hover:bg-slate-900/40 transition-colors cursor-pointer">
+                      <td className="py-1.5 px-2"><StatusBadge status={alert.status} /></td>
+                      <td className="py-1.5 px-2 font-mono font-bold text-white text-[10px] truncate max-w-[80px]">
+                        {alert.alarmSystem?.systemCode || 'UNKNOWN'}
+                      </td>
+                      <td className="py-1.5 px-2">
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] font-mono border ${getCategoryColor(category)}`}>
+                          {getCategoryShort(category)}
+                        </span>
+                      </td>
+                      <td className="py-1.5 px-2">{renderZoneBadges(alert.zoneNumbers)}</td>
+                      <td className="py-1.5 px-2 max-w-[130px]">
+                        <button onClick={(e) => handleMessageClick(e, alert)} className="flex items-center gap-1 text-slate-400 hover:text-white transition-colors group w-full min-w-0">
+                          <span className="flex-shrink-0">{getMessageIcon(alert.alertType)}</span>
+                          <span className="text-[10px] font-mono group-hover:text-blue-400 transition-colors truncate block w-full">
+                            {getMessagePreview(alert.alertType)}
+                          </span>
+                        </button>
+                      </td>
+                      <td className="py-1.5 px-2 text-slate-400 text-[9px] font-mono whitespace-nowrap">
+                        {new Date(alert.receivedAt).toLocaleTimeString()}
+                      </td>
+                      <td className="py-1.5 px-2 text-center">
+                        {isPending ? (
+                          <span className="inline-flex items-center gap-0.5 text-yellow-400 font-mono text-[9px] font-bold whitespace-nowrap">
+                            <Timer className="w-2.5 h-2.5" />
+                            {getPendingDuration(alert.receivedAt)}
+                          </span>
+                        ) : (
+                          <span className="text-[8px] text-slate-500 font-mono">—</span>
+                        )}
+                      </td>
+                      <td className="py-1.5 px-2 text-center">
+                        {isPending ? (
+                          <button onClick={(e) => handleResolveClick(e, alert)} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-[8px] font-mono transition-all whitespace-nowrap">
+                            <CheckCircle className="w-2.5 h-2.5" /> Resolve
+                          </button>
+                        ) : (
+                          <span className="text-[8px] text-slate-500 font-mono">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* TABLET (sm to lg) */}
+          <div className="hidden sm:block lg:hidden">
+            <table className="w-full text-left min-w-[500px]">
+              <thead className="sticky top-0 bg-slate-900/95 text-slate-400 uppercase text-[8px] tracking-wider border-b border-slate-800 font-mono z-10 backdrop-blur">
+                <tr>
+                  <th className="py-1 px-1.5 w-[55px]">Status</th>
+                  <th className="py-1 px-1.5 w-[60px]">System</th>
+                  <th className="py-1 px-1.5 w-[35px]">Cat</th>
+                  <th className="py-1 px-1.5 w-[55px]">Zones</th>
+                  <th className="py-1 px-1.5 w-[100px]">Message</th>
+                  <th className="py-1 px-1.5 w-[55px]">Time</th>
+                  <th className="py-1 px-1.5 w-[55px] text-center">Pending</th>
+                  <th className="py-1 px-1.5 w-[50px] text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/50">
+                {filteredAlerts.map((alert) => {
+                  const isPending = alert.status === 'PENDING';
+                  const category = getAlertCategory(alert);
+                  return (
+                    <tr key={alert.id} onClick={() => handleRowClick(alert)} className="hover:bg-slate-900/40 transition-colors cursor-pointer">
+                      <td className="py-1 px-1.5"><StatusBadge status={alert.status} /></td>
+                      <td className="py-1 px-1.5 font-mono font-bold text-white text-[9px] truncate max-w-[60px]">
+                        {alert.alarmSystem?.systemCode || 'UNKNOWN'}
+                      </td>
+                      <td className="py-1 px-1.5">
+                        <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[7px] font-mono border ${getCategoryColor(category)}`}>
+                          {getCategoryShort(category)}
+                        </span>
+                      </td>
+                      <td className="py-1 px-1.5">{renderZoneBadges(alert.zoneNumbers)}</td>
+                      <td className="py-1 px-1.5 max-w-[100px]">
+                        <button onClick={(e) => handleMessageClick(e, alert)} className="flex items-center gap-0.5 text-slate-400 hover:text-white transition-colors group w-full min-w-0">
+                          <span className="flex-shrink-0">{getMessageIcon(alert.alertType)}</span>
+                          <span className="text-[9px] font-mono group-hover:text-blue-400 transition-colors truncate block w-full">
+                            {getMessagePreview(alert.alertType)}
+                          </span>
+                        </button>
+                      </td>
+                      <td className="py-1 px-1.5 text-slate-400 text-[8px] font-mono whitespace-nowrap">
+                        {new Date(alert.receivedAt).toLocaleTimeString()}
+                      </td>
+                      <td className="py-1 px-1.5 text-center">
+                        {isPending ? (
+                          <span className="inline-flex items-center gap-0.5 text-yellow-400 font-mono text-[8px] font-bold whitespace-nowrap">
+                            <Timer className="w-2 h-2" />
+                            {getPendingDuration(alert.receivedAt)}
+                          </span>
+                        ) : (
+                          <span className="text-[7px] text-slate-500 font-mono">—</span>
+                        )}
+                      </td>
+                      <td className="py-1 px-1.5 text-center">
+                        {isPending ? (
+                          <button onClick={(e) => handleResolveClick(e, alert)} className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-[7px] font-mono transition-all whitespace-nowrap">
+                            <CheckCircle className="w-2 h-2" /> Resolve
+                          </button>
+                        ) : (
+                          <span className="text-[7px] text-slate-500 font-mono">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* MOBILE CARDS (sm and below) */}
+          <div className="sm:hidden divide-y divide-slate-800">
+            {filteredAlerts.map((alert) => {
+              const isPending = alert.status === 'PENDING';
+              const category = getAlertCategory(alert);
+              return (
+                <div key={alert.id} onClick={() => handleRowClick(alert)} className="p-2.5 hover:bg-slate-900/40 transition-colors cursor-pointer space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 flex-wrap min-w-0">
+                      <StatusBadge status={alert.status} />
+                      <span className="font-mono font-bold text-white text-[9px] truncate max-w-[60px]">
+                        {alert.alarmSystem?.systemCode || 'UNKNOWN'}
+                      </span>
+                      <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[7px] font-mono border ${getCategoryColor(category)}`}>
+                        {getCategoryShort(category)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {isPending && (
+                        <button onClick={(e) => handleResolveClick(e, alert)} className="p-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded transition-all">
+                          <CheckCircle className="w-2.5 h-2.5" />
+                        </button>
+                      )}
+                      <button onClick={(e) => handleMessageClick(e, alert)} className="p-1 bg-slate-800 rounded hover:bg-slate-700 transition-colors flex-shrink-0">
+                        {getMessageIcon(alert.alertType)}
                       </button>
-                    )}
-                    <button
-                      onClick={(e) => handleMessageClick(e, alert)}
-                      className="p-1.5 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors flex-shrink-0"
-                    >
-                      {getMessageIcon(alert.alertType)}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-0.5 text-[9px] text-slate-400 min-w-0">
+                    <MapPin className="w-2.5 h-2.5 flex-shrink-0" />
+                    <span className="truncate max-w-[80px]">{alert.alarmSystem?.location || 'Unknown'}</span>
+                    <span className="text-slate-600 mx-0.5">•</span>
+                    {renderZoneBadges(alert.zoneNumbers)}
+                  </div>
+
+                  <div className="flex items-center justify-between gap-1 text-[9px]">
+                    <button onClick={(e) => handleMessageClick(e, alert)} className="flex items-center gap-0.5 text-slate-400 hover:text-white transition-colors group min-w-0 flex-1">
+                      <span className="flex-shrink-0">{getMessageIcon(alert.alertType)}</span>
+                      <span className="truncate font-mono text-[8px] block w-full">
+                        {getMessagePreview(alert.alertType)}
+                      </span>
                     </button>
-                  </div>
-                </div>
-
-                {/* Row 2: Location + Zones */}
-                <div className="flex flex-wrap items-center gap-1 text-xs text-slate-400 min-w-0">
-                  <MapPin className="w-3 h-3 flex-shrink-0" />
-                  <span className="truncate max-w-[120px]">
-                    {alert.alarmSystem?.location || 'Unknown'}
-                  </span>
-                  <span className="text-slate-600 mx-1 flex-shrink-0">•</span>
-                  {renderZoneBadges(alert.zoneNumbers)}
-                </div>
-
-                {/* Row 3: Message Preview + Time */}
-                <div className="flex items-center justify-between gap-2 text-xs">
-                  <button
-                    onClick={(e) => handleMessageClick(e, alert)}
-                    className="flex items-center gap-1.5 text-slate-400 hover:text-white transition-colors group min-w-0 flex-1"
-                  >
-                    <span className="flex-shrink-0">
-                      {getMessageIcon(alert.alertType)}
+                    <span className="text-slate-500 text-[8px] font-mono flex-shrink-0">
+                      {new Date(alert.receivedAt).toLocaleTimeString()}
                     </span>
-                    <span className="truncate font-mono text-[10px] block w-full">
-                      {getMessagePreview(alert.alertType)}
-                    </span>
-                  </button>
-                  <div className="flex items-center gap-1 text-slate-500 text-[10px] font-mono flex-shrink-0">
-                    <Clock className="w-3 h-3" />
-                    {new Date(alert.receivedAt).toLocaleTimeString()}
                   </div>
+
+                  {isPending && (
+                    <div className="flex items-center gap-0.5 text-yellow-400 text-[8px] font-mono font-bold">
+                      <Timer className="w-2.5 h-2.5" />
+                      Pending: {getPendingDuration(alert.receivedAt)}
+                    </div>
+                  )}
+
+                  {isPending && (
+                    <button onClick={(e) => handleResolveClick(e, alert)} className="w-full mt-0.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-[8px] font-mono transition-all flex items-center justify-center gap-1">
+                      <CheckCircle className="w-2.5 h-2.5" /> Resolve Alert
+                    </button>
+                  )}
                 </div>
+              );
+            })}
+          </div>
 
-                {/* Row 4: Pending Duration */}
-                {isPending && (
-                  <div className="flex items-center gap-1 text-yellow-400 text-[10px] font-mono font-bold">
-                    <Timer className="w-3 h-3 flex-shrink-0" />
-                    Pending: {getPendingDuration(alert.receivedAt)}
-                  </div>
-                )}
-
-                {/* Mobile Resolve Button */}
-                {isPending && (
-                  <button
-                    onClick={(e) => handleResolveClick(e, alert)}
-                    className="w-full mt-1 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-[10px] font-mono transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                    Resolve Alert
-                  </button>
-                )}
-              </div>
-            );
-          })}
+          {/* NO RESULTS */}
+          {filteredAlerts.length === 0 && (
+            <div className="p-6 text-center">
+              <div className="text-slate-500 font-mono text-sm">No alerts match your filters</div>
+              <button onClick={() => { setFilterCategory('ALL'); setFilterSystem('ALL'); setSearchQuery(''); }} className="mt-1 text-[9px] text-red-400 hover:text-red-300 font-mono transition-colors">
+                Clear all filters
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* ===== MODALS ===== */}
-      <AlertModal 
-        alert={selectedAlert} 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-      />
-      
-      <AlertDetailsPanel 
-        alert={selectedAlert} 
-        isOpen={isPanelOpen} 
-        onClose={() => setIsPanelOpen(false)}
-        onResolved={handleResolved}
-        username={username}
-      />
-
-      <AlertResolveModal
-        alert={resolveAlertData}
-        isOpen={isResolveModalOpen}
-        onClose={() => {
-          setIsResolveModalOpen(false);
-          setResolveAlertData(null);
-        }}
-        onResolved={handleResolved}
-        username={username}
-      />
+      <AlertModal alert={selectedAlert} isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <AlertDetailsPanel alert={selectedAlert} isOpen={isPanelOpen} onClose={() => setIsPanelOpen(false)} onResolved={handleResolved} username={username} />
+      <AlertResolveModal alert={resolveAlertData} isOpen={isResolveModalOpen} onClose={() => { setIsResolveModalOpen(false); setResolveAlertData(null); }} onResolved={handleResolved} username={username} />
     </>
   );
 }

@@ -13,7 +13,6 @@ export default function AlertResolveModal({ alert, isOpen, onClose, onResolved, 
   useEffect(() => {
     if (isOpen && alert) {
       updatePendingDuration();
-      // Update every second while modal is open
       const interval = setInterval(updatePendingDuration, 1000);
       return () => clearInterval(interval);
     }
@@ -70,8 +69,13 @@ export default function AlertResolveModal({ alert, isOpen, onClose, onResolved, 
       if (result.success) {
         setSuccess('✅ Alert resolved successfully!');
         setTimeout(() => {
-          onResolved(result.alert);
-          onClose();
+          if (onResolved) {
+            onResolved(result.alert);
+          }
+          // Close modal after success
+          if (onClose) {
+            onClose();
+          }
         }, 1500);
       } else {
         setError(result.message || 'Failed to resolve alert');
@@ -80,6 +84,13 @@ export default function AlertResolveModal({ alert, isOpen, onClose, onResolved, 
       setError(err.message || 'An error occurred while resolving');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ===== HANDLE CANCEL/CLOSE =====
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
     }
   };
 
@@ -93,10 +104,11 @@ export default function AlertResolveModal({ alert, isOpen, onClose, onResolved, 
             <h2 className="text-xl font-bold text-white">Resolve Alert</h2>
           </div>
           <button 
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+            aria-label="Close modal"
           >
-            <X className="w-5 h-5 text-slate-400" />
+            <X className="w-5 h-5 text-slate-400 hover:text-white" />
           </button>
         </div>
 
@@ -124,7 +136,6 @@ export default function AlertResolveModal({ alert, isOpen, onClose, onResolved, 
               </span>
             </div>
             
-            {/* ===== PENDING DURATION - NEW ===== */}
             <div className="flex justify-between items-center border-t border-slate-800 pt-3 mt-1">
               <span className="text-sm text-slate-400 flex items-center gap-1.5">
                 <Timer className="w-4 h-4 text-yellow-500" />
@@ -183,8 +194,8 @@ export default function AlertResolveModal({ alert, isOpen, onClose, onResolved, 
           {/* Actions */}
           <div className="flex gap-3 pt-2">
             <button
-              onClick={onClose}
-              className="flex-1 py-2.5 border border-slate-700 text-slate-400 hover:text-white rounded-xl text-sm font-mono transition-colors"
+              onClick={handleClose}
+              className="flex-1 py-2.5 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-600 rounded-xl text-sm font-mono transition-colors"
             >
               Cancel
             </button>
@@ -213,6 +224,6 @@ AlertResolveModal.propTypes = {
   alert: PropTypes.object,
   isOpen: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
-  onResolved: PropTypes.func.isRequired,
+  onResolved: PropTypes.func,
   username: PropTypes.string.isRequired,
 };

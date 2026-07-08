@@ -1,4 +1,4 @@
-import React from 'react';
+import PropTypes from 'prop-types';
 import { Shield, RefreshCw, LogOut, Settings } from 'lucide-react';
 
 export default function Navbar({ user, onLogout, onOpenAdminPanel, onRefresh }) {
@@ -61,3 +61,13 @@ export default function Navbar({ user, onLogout, onOpenAdminPanel, onRefresh }) 
     </nav>
   );
 }
+
+Navbar.propTypes = {
+  user: PropTypes.shape({
+    username: PropTypes.string.isRequired,
+    role: PropTypes.string.isRequired,
+  }).isRequired,
+  onLogout: PropTypes.func.isRequired,
+  onOpenAdminPanel: PropTypes.func.isRequired,
+  onRefresh: PropTypes.func.isRequired,
+};
