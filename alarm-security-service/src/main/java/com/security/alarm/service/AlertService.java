@@ -2,10 +2,12 @@ package com.security.alarm.service;
 
 import com.security.alarm.entity.AlertLog;
 import com.security.alarm.entity.AlarmSystem;
+import com.security.alarm.entity.AlarmZone;
 import com.security.alarm.entity.User;
 import com.security.alarm.entity.UserSystem;
 import com.security.alarm.repository.AlertLogRepository;
 import com.security.alarm.repository.AlarmSystemRepository;
+import com.security.alarm.repository.AlarmZoneRepository;
 import com.security.alarm.repository.UserRepository;
 import com.security.alarm.repository.UserSystemRepository;
 import org.springframework.stereotype.Service;
@@ -24,50 +26,53 @@ public class AlertService {
 
     private final AlertLogRepository alertLogRepository;
     private final AlarmSystemRepository alarmSystemRepository;
+    private final AlarmZoneRepository alarmZoneRepository;
     private final UserRepository userRepository;
     private final UserSystemRepository userSystemRepository;
 
     public AlertService(AlertLogRepository alertLogRepository, 
                         AlarmSystemRepository alarmSystemRepository,
+                        AlarmZoneRepository alarmZoneRepository,
                         UserRepository userRepository,
                         UserSystemRepository userSystemRepository) {
         this.alertLogRepository = alertLogRepository;
         this.alarmSystemRepository = alarmSystemRepository;
+        this.alarmZoneRepository = alarmZoneRepository;
         this.userRepository = userRepository;
         this.userSystemRepository = userSystemRepository;
     }
 
     // Process incoming SMS
     public AlertLog processIncomingSMS(String fromSimNumber, String smsContent) {
-    AlertLog alertLog = new AlertLog();
-    alertLog.setReceivedAt(LocalDateTime.now());
-    
-    String cleanMessage = smsContent;
-    if (fromSimNumber != null && !fromSimNumber.isEmpty()) {
-        cleanMessage = cleanMessage.replace(fromSimNumber, "").trim();
-    }
+        AlertLog alertLog = new AlertLog();
+        alertLog.setReceivedAt(LocalDateTime.now());
+        
+        String cleanMessage = smsContent;
+        if (fromSimNumber != null && !fromSimNumber.isEmpty()) {
+            cleanMessage = cleanMessage.replace(fromSimNumber, "").trim();
+        }
 
-    // ===== NEW: Check if this is a CALL alert =====
-    if (cleanMessage != null && cleanMessage.toLowerCase().contains("call incoming")) {
-        alertLog.setStatus("CALL");
-    } else if (cleanMessage != null && cleanMessage.toUpperCase().contains("ARMED")) {
-        alertLog.setStatus("ARMED");
-    } else {
-        alertLog.setStatus("PENDING");
-    }
+        // Check for CALL or ARMED status
+        if (cleanMessage != null && cleanMessage.toLowerCase().contains("call incoming")) {
+            alertLog.setStatus("CALL");
+        } else if (cleanMessage != null && cleanMessage.toUpperCase().contains("ARMED")) {
+            alertLog.setStatus("ARMED");
+        } else {
+            alertLog.setStatus("PENDING");
+        }
 
-    // Find system by SIM number
-    Optional<AlarmSystem> machineOpt = alarmSystemRepository.findBySimNumber(fromSimNumber);
-    
-    if (machineOpt.isPresent()) {
-        alertLog.setAlarmSystem(machineOpt.get());
-    } else {
-        alertLog.setAlarmSystem(null);
-    }
+        // Find system by SIM number
+        Optional<AlarmSystem> machineOpt = alarmSystemRepository.findBySimNumber(fromSimNumber);
+        
+        if (machineOpt.isPresent()) {
+            alertLog.setAlarmSystem(machineOpt.get());
+        } else {
+            alertLog.setAlarmSystem(null);
+        }
 
-    // Extract zone numbers (only if not a call alert)
-    if (!"CALL".equals(alertLog.getStatus())) {
+        // Extract zone numbers
         String zoneNumbers = extractZoneNumbers(smsContent);
+        
         if (!zoneNumbers.isEmpty()) {
             alertLog.setZoneNumbers(zoneNumbers);
             String firstZone = zoneNumbers.split(",")[0].trim();
@@ -76,21 +81,49 @@ public class AlertService {
             } catch (NumberFormatException e) {
                 alertLog.setZoneNumber(0);
             }
+            
+            // ===== NEW: Get zone names from DB =====
+            if (machineOpt.isPresent()) {
+                String zoneNames = getZoneNames(machineOpt.get().getId(), zoneNumbers);
+                alertLog.setZoneNames(zoneNames);
+            }
         } else {
             alertLog.setZoneNumber(0);
             alertLog.setZoneNumbers("00");
+            alertLog.setZoneNames("No Zone");
         }
-    } else {
-        // Call alerts - no zones
-        alertLog.setZoneNumber(0);
-        alertLog.setZoneNumbers("00");
+
+        alertLog.setAlertType(cleanMessage);
+        alertLog.setRawMessage(smsContent);
+        
+        return alertLogRepository.save(alertLog);
     }
 
-    alertLog.setAlertType(cleanMessage);
-    alertLog.setRawMessage(smsContent);
-    
-    return alertLogRepository.save(alertLog);
-}
+    // ===== NEW: Get zone names from zone numbers =====
+    private String getZoneNames(Long systemId, String zoneNumbers) {
+        if (zoneNumbers == null || zoneNumbers.isEmpty() || zoneNumbers.equals("00")) {
+            return "No Zone";
+        }
+        
+        String[] zoneArray = zoneNumbers.split(",");
+        List<String> zoneNames = new ArrayList<>();
+        
+        for (String zoneStr : zoneArray) {
+            try {
+                int zoneNum = Integer.parseInt(zoneStr.trim());
+                Optional<AlarmZone> zoneOpt = alarmZoneRepository.findByAlarmSystemIdAndZoneNumber(systemId, zoneNum);
+                if (zoneOpt.isPresent()) {
+                    zoneNames.add(zoneOpt.get().getZoneName());
+                } else {
+                    zoneNames.add("Zone " + zoneStr.trim());
+                }
+            } catch (NumberFormatException e) {
+                zoneNames.add("Zone " + zoneStr.trim());
+            }
+        }
+        
+        return String.join(", ", zoneNames);
+    }
 
     // Extract zone numbers from SMS
     private String extractZoneNumbers(String smsContent) {
@@ -125,8 +158,10 @@ public class AlertService {
         return uniqueZones.isEmpty() ? "" : String.join(",", uniqueZones);
     }
 
-    // Get all alerts (filtered by user)
+    // Get all alerts (filtered by user) - WITH ZONE NAMES
     public List<AlertLog> getAllAlerts(String username) {
+        List<AlertLog> alerts;
+        
         if (username != null && !username.trim().isEmpty()) {
             Optional<User> userOpt = userRepository.findByUsername(username);
             if (userOpt.isPresent() && "USER".equalsIgnoreCase(userOpt.get().getRole())) {
@@ -135,13 +170,26 @@ public class AlertService {
                 if (systemIds.isEmpty()) {
                     return new ArrayList<>();
                 }
-                return alertLogRepository.findAllByAlarmSystemIdInOrderByReceivedAtDesc(systemIds);
+                alerts = alertLogRepository.findAllByAlarmSystemIdInOrderByReceivedAtDesc(systemIds);
+            } else {
+                alerts = alertLogRepository.findAllByOrderByReceivedAtDesc();
+            }
+        } else {
+            alerts = alertLogRepository.findAllByOrderByReceivedAtDesc();
+        }
+        
+        // ===== NEW: Populate zone names for each alert =====
+        for (AlertLog alert : alerts) {
+            if (alert.getAlarmSystem() != null && alert.getZoneNumbers() != null && !alert.getZoneNumbers().isEmpty()) {
+                String zoneNames = getZoneNames(alert.getAlarmSystem().getId(), alert.getZoneNumbers());
+                alert.setZoneNames(zoneNames);
+            } else {
+                alert.setZoneNames("No Zone");
             }
         }
-        return alertLogRepository.findAllByOrderByReceivedAtDesc();
+        
+        return alerts;
     }
-
-    // ========== NEW RESOLVE METHODS ==========
 
     // Resolve an alert
     @Transactional
@@ -153,12 +201,10 @@ public class AlertService {
 
         AlertLog alert = alertOpt.get();
         
-        // Only PENDING alerts can be resolved
         if (!"PENDING".equals(alert.getStatus())) {
             throw new RuntimeException("Only PENDING alerts can be resolved. Current status: " + alert.getStatus());
         }
 
-        // Calculate pending duration
         LocalDateTime now = LocalDateTime.now();
         Duration duration = Duration.between(alert.getReceivedAt(), now);
         
@@ -172,37 +218,62 @@ public class AlertService {
             alert.setResolutionDescription(description.trim());
         }
 
-        return alertLogRepository.save(alert);
+        AlertLog savedAlert = alertLogRepository.save(alert);
+        
+        // Populate zone names
+        if (savedAlert.getAlarmSystem() != null && savedAlert.getZoneNumbers() != null) {
+            savedAlert.setZoneNames(getZoneNames(savedAlert.getAlarmSystem().getId(), savedAlert.getZoneNumbers()));
+        }
+        
+        return savedAlert;
     }
 
     // Get alert with details
     public AlertLog getAlertWithDetails(Long alertId) {
-        return alertLogRepository.findByIdWithSystem(alertId);
+        AlertLog alert = alertLogRepository.findByIdWithSystem(alertId);
+        if (alert != null && alert.getAlarmSystem() != null && alert.getZoneNumbers() != null) {
+            alert.setZoneNames(getZoneNames(alert.getAlarmSystem().getId(), alert.getZoneNumbers()));
+        }
+        return alert;
     }
 
-    // Get pending alerts count
     public long getPendingCount() {
         return alertLogRepository.countByStatus("PENDING");
     }
 
-    // Get resolved alerts count
     public long getResolvedCount() {
         return alertLogRepository.countResolved();
     }
 
-    // Get all pending alerts
     public List<AlertLog> getPendingAlerts() {
-        return alertLogRepository.findAllByOrderByReceivedAtDesc()
+        List<AlertLog> alerts = alertLogRepository.findAllByOrderByReceivedAtDesc()
             .stream()
             .filter(a -> "PENDING".equals(a.getStatus()))
             .collect(Collectors.toList());
+        
+        // Populate zone names
+        for (AlertLog alert : alerts) {
+            if (alert.getAlarmSystem() != null && alert.getZoneNumbers() != null) {
+                alert.setZoneNames(getZoneNames(alert.getAlarmSystem().getId(), alert.getZoneNumbers()));
+            }
+        }
+        
+        return alerts;
     }
 
-    // Get alerts by status
     public List<AlertLog> getAlertsByStatus(String status) {
-        return alertLogRepository.findAllByOrderByReceivedAtDesc()
+        List<AlertLog> alerts = alertLogRepository.findAllByOrderByReceivedAtDesc()
             .stream()
             .filter(a -> status.equalsIgnoreCase(a.getStatus()))
             .collect(Collectors.toList());
+        
+        // Populate zone names
+        for (AlertLog alert : alerts) {
+            if (alert.getAlarmSystem() != null && alert.getZoneNumbers() != null) {
+                alert.setZoneNames(getZoneNames(alert.getAlarmSystem().getId(), alert.getZoneNumbers()));
+            }
+        }
+        
+        return alerts;
     }
 }

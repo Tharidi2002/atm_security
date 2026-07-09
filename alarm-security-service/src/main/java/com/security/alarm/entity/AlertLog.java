@@ -35,22 +35,25 @@ public class AlertLog {
     private LocalDateTime receivedAt = LocalDateTime.now();
 
     @Column(length = 20)
-    private String status = "PENDING"; // PENDING, RESOLVED, ARMED
+    private String status = "PENDING";
 
-    // ========== NEW FIELDS FOR RESOLVE FEATURE ==========
-    
+    // Resolve fields
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
     
     @Column(name = "resolved_by")
-    private String resolvedBy; // username who resolved
+    private String resolvedBy;
     
     @Column(name = "pending_duration_seconds")
-    private Long pendingDurationSeconds; // how long it was pending
+    private Long pendingDurationSeconds;
     
     @Column(name = "resolution_description", columnDefinition = "TEXT")
-    private String resolutionDescription; // optional description
+    private String resolutionDescription;
     
     @Column(name = "resolved_from_ip")
-    private String resolvedFromIp; // IP address of resolver
+    private String resolvedFromIp;
+
+    // ===== NEW: Zone Names (Not stored in DB, computed at runtime) =====
+    @Transient
+    private String zoneNames;
 }

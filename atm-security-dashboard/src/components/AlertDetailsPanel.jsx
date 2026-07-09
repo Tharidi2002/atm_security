@@ -9,29 +9,43 @@ export default function AlertDetailsPanel({ alert, isOpen, onClose, onResolved, 
 
   if (!isOpen || !alert) return null;
 
-  const renderZoneBadges = (zoneNumbers) => {
-    if (!zoneNumbers || zoneNumbers === '00' || zoneNumbers === '0') {
-      return <span className="text-slate-400 text-sm">No Zone</span>;
+  // ===== NEW: Render zone names from zoneNames field =====
+  const renderZoneNames = () => {
+    // If zoneNames is available, use it
+    if (alert.zoneNames) {
+      const zones = alert.zoneNames.split(',').map(z => z.trim());
+      return (
+        <div className="flex flex-wrap gap-2">
+          {zones.map((zone, index) => (
+            <span 
+              key={index}
+              className="px-3 py-1 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-sm font-bold"
+            >
+              {zone}
+            </span>
+          ))}
+        </div>
+      );
     }
-
-    const zones = zoneNumbers.split(',').map(z => z.trim()).filter(z => z !== '');
     
-    if (zones.length === 0) {
-      return <span className="text-slate-400 text-sm">No Zone</span>;
+    // Fallback: Use zone numbers
+    if (alert.zoneNumbers && alert.zoneNumbers !== '00') {
+      const zones = alert.zoneNumbers.split(',').map(z => z.trim());
+      return (
+        <div className="flex flex-wrap gap-2">
+          {zones.map((zone, index) => (
+            <span 
+              key={index}
+              className="px-3 py-1 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-sm font-bold"
+            >
+              Zone {String(zone).padStart(2, '0')}
+            </span>
+          ))}
+        </div>
+      );
     }
-
-    return (
-      <div className="flex flex-wrap gap-2">
-        {zones.map((zone, index) => (
-          <span 
-            key={index}
-            className="px-3 py-1 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-sm font-bold"
-          >
-            Zone {String(zone).padStart(2, '0')}
-          </span>
-        ))}
-      </div>
-    );
+    
+    return <span className="text-slate-400 text-sm">No Zone</span>;
   };
 
   const formatDuration = (seconds) => {
@@ -62,7 +76,6 @@ export default function AlertDetailsPanel({ alert, isOpen, onClose, onResolved, 
 
   const isPending = alert.status === 'PENDING';
 
-  // Live pending duration
   const getLivePendingDuration = () => {
     if (!alert.receivedAt || !isPending) return null;
     const now = new Date();
@@ -78,7 +91,6 @@ export default function AlertDetailsPanel({ alert, isOpen, onClose, onResolved, 
 
   return (
     <>
-      {/* Full Screen Modal Overlay */}
       <div 
         className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
         onClick={handleClose}
@@ -87,7 +99,7 @@ export default function AlertDetailsPanel({ alert, isOpen, onClose, onResolved, 
           className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl shadow-red-500/10"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* ===== HEADER ===== */}
+          {/* Header */}
           <div className="flex justify-between items-center p-5 border-b border-slate-800 bg-slate-950/40 sticky top-0 z-10 rounded-t-2xl">
             <div className="flex items-center gap-3">
               <div className="bg-red-500/10 p-2 rounded-lg border border-red-500/20">
@@ -107,7 +119,7 @@ export default function AlertDetailsPanel({ alert, isOpen, onClose, onResolved, 
             </button>
           </div>
 
-          {/* ===== BODY ===== */}
+          {/* Body */}
           <div className="p-5 space-y-4">
             
             {/* Status & System */}
@@ -124,11 +136,16 @@ export default function AlertDetailsPanel({ alert, isOpen, onClose, onResolved, 
               <span className="text-sm">{alert.alarmSystem?.location || 'Unknown Location'}</span>
             </div>
 
-            {/* Zones */}
-            <div className="flex items-start gap-2 bg-slate-800/30 rounded-xl px-4 py-2.5">
-              <Radio className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
-              <div className="flex flex-wrap gap-2">
-                {renderZoneBadges(alert.zoneNumbers)}
+            {/* ===== ZONES - NOW SHOWING NAMES ===== */}
+            <div className="bg-slate-800/30 rounded-xl px-4 py-2.5">
+              <div className="flex items-start gap-2">
+                <Radio className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
+                <div className="flex flex-col gap-1 w-full">
+                  <span className="text-xs text-slate-400 font-mono">Affected Zones</span>
+                  <div className="flex flex-wrap gap-2">
+                    {renderZoneNames()}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -146,7 +163,7 @@ export default function AlertDetailsPanel({ alert, isOpen, onClose, onResolved, 
               <span>Received: <span className="text-white">{new Date(alert.receivedAt).toLocaleString()}</span></span>
             </div>
 
-            {/* ===== PENDING DURATION - LIVE ===== */}
+            {/* Pending Duration */}
             {isPending && (
               <div className="flex items-center gap-2 text-yellow-400 text-sm bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-2.5">
                 <Timer className="w-4 h-4 flex-shrink-0" />
@@ -154,7 +171,7 @@ export default function AlertDetailsPanel({ alert, isOpen, onClose, onResolved, 
               </div>
             )}
 
-            {/* ===== RESOLVED INFO ===== */}
+            {/* Resolved Info */}
             {alert.status === 'RESOLVED' && (
               <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 space-y-2.5">
                 <div className="flex items-center gap-2 text-emerald-400">
@@ -193,7 +210,7 @@ export default function AlertDetailsPanel({ alert, isOpen, onClose, onResolved, 
               </div>
             )}
 
-            {/* ===== ACTIONS ===== */}
+            {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-slate-800">
               {isPending && (
                 <button
@@ -216,7 +233,6 @@ export default function AlertDetailsPanel({ alert, isOpen, onClose, onResolved, 
         </div>
       </div>
 
-      {/* ===== RESOLVE MODAL ===== */}
       <AlertResolveModal
         alert={alert}
         isOpen={showResolveModal}

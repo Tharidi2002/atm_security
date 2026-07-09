@@ -22,7 +22,6 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
   const [showSystemDropdown, setShowSystemDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Update every second for live pending duration
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(new Date());
@@ -40,19 +39,15 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
         lowerType.includes('incoming call') || status === 'CALL') {
       return 'CALL';
     }
-    
     if (lowerType.includes('armed') || status === 'ARMED') {
       return 'ARMED';
     }
-    
     if (status === 'RESOLVED') {
       return 'RESOLVED';
     }
-    
     if (lowerType.includes('zone') || lowerType.includes('alarm')) {
       return 'ZONE_ALARM';
     }
-    
     return 'OTHER';
   };
 
@@ -76,7 +71,6 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
     }
   };
 
-  // ===== GET UNIQUE SYSTEMS =====
   const getUniqueSystems = useMemo(() => {
     const systems = new Set();
     alerts.forEach(alert => {
@@ -87,7 +81,6 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
     return ['ALL', ...Array.from(systems)];
   }, [alerts]);
 
-  // ===== GET CATEGORY COUNTS =====
   const getCategoryCounts = useMemo(() => {
     const counts = {
       ALL: alerts.length,
@@ -97,18 +90,15 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
       ZONE_ALARM: 0,
       OTHER: 0
     };
-    
     alerts.forEach(alert => {
       const category = getAlertCategory(alert);
       if (counts[category] !== undefined) {
         counts[category] = (counts[category] || 0) + 1;
       }
     });
-    
     return counts;
   }, [alerts]);
 
-  // ===== GET SYSTEM COUNTS =====
   const getSystemCounts = useMemo(() => {
     const counts = {};
     alerts.forEach(alert => {
@@ -118,20 +108,16 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
     return counts;
   }, [alerts]);
 
-  // ===== FILTER ALERTS =====
   const getFilteredAlerts = () => {
     let filtered = alerts;
-    
     if (filterCategory !== 'ALL') {
       filtered = filtered.filter(alert => getAlertCategory(alert) === filterCategory);
     }
-    
     if (filterSystem !== 'ALL') {
       filtered = filtered.filter(alert => 
         (alert.alarmSystem?.systemCode || 'UNKNOWN') === filterSystem
       );
     }
-    
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(alert => {
@@ -145,38 +131,30 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                zones.includes(query);
       });
     }
-    
     return filtered;
   };
 
   const filteredAlerts = getFilteredAlerts();
 
-  // ===== CALCULATE PENDING DURATION =====
   const getPendingDuration = (receivedAt) => {
     if (!receivedAt) return 'N/A';
     const now = currentTime;
     const received = new Date(receivedAt);
     const diffMs = now - received;
-    
     if (diffMs < 0) return 'N/A';
-    
     const diffSecs = Math.floor(diffMs / 1000);
     const diffMins = Math.floor(diffSecs / 60);
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
-    
     let durationStr = '';
     if (diffDays > 0) durationStr += `${diffDays}d `;
     if (diffHours % 24 > 0) durationStr += `${diffHours % 24}h `;
     if (diffMins % 60 > 0) durationStr += `${diffMins % 60}m `;
     if (diffSecs % 60 > 0) durationStr += `${diffSecs % 60}s`;
-    
     return durationStr.trim() || '0s';
   };
 
-  // ============================================================
-  // ===== FIXED: FILTER DROPDOWN - z-index increased =====
-  // ============================================================
+  // ===== FILTER DROPDOWN =====
   const FilterDropdown = () => {
     const categories = [
       { value: 'ALL', label: '📊 All' },
@@ -202,17 +180,8 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
           </span>
           <span className="text-slate-500 text-[9px]">({filterCategory === 'ALL' ? alerts.length : getCategoryCounts[filterCategory] || 0})</span>
         </button>
-        
         {showFilterDropdown && (
-          <div 
-            className="absolute top-full left-0 mt-1 w-40 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden"
-            style={{ 
-              zIndex: 9999,
-              minWidth: '150px',
-              maxHeight: '300px',
-              overflowY: 'auto'
-            }}
-          >
+          <div className="absolute top-full left-0 mt-1 w-40 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden" style={{ zIndex: 9999, minWidth: '150px', maxHeight: '300px', overflowY: 'auto' }}>
             <div className="p-1 space-y-0.5">
               {categories.map((option) => (
                 <button
@@ -238,12 +207,9 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
     );
   };
 
-  // ============================================================
-  // ===== FIXED: SYSTEM DROPDOWN - z-index increased =====
-  // ============================================================
+  // ===== SYSTEM DROPDOWN =====
   const SystemDropdown = () => {
     const systems = getUniqueSystems;
-
     return (
       <div className="relative" style={{ zIndex: 9998 }}>
         <button
@@ -261,17 +227,8 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
             ({filterSystem === 'ALL' ? alerts.length : getSystemCounts[filterSystem] || 0})
           </span>
         </button>
-        
         {showSystemDropdown && (
-          <div 
-            className="absolute top-full left-0 mt-1 w-48 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden"
-            style={{ 
-              zIndex: 9998,
-              minWidth: '180px',
-              maxHeight: '300px',
-              overflowY: 'auto'
-            }}
-          >
+          <div className="absolute top-full left-0 mt-1 w-48 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden" style={{ zIndex: 9998, minWidth: '180px', maxHeight: '300px', overflowY: 'auto' }}>
             <div className="p-1 space-y-0.5">
               {systems.map((system) => (
                 <button
@@ -337,17 +294,22 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
     setIsResolveModalOpen(false);
   };
 
-  const renderZoneBadges = (zoneNumbers) => {
-    if (!zoneNumbers || zoneNumbers === '00' || zoneNumbers === '0') {
+  // ===== RENDER ZONE BADGES - SUPPORTS BOTH NAMES AND NUMBERS =====
+  const renderZoneBadges = (zoneData) => {
+    if (!zoneData || zoneData === '00' || zoneData === '0') {
       return <span className="text-slate-500 text-[9px]">—</span>;
     }
-    const zones = zoneNumbers.split(',').map(z => z.trim()).filter(z => z !== '');
+    const zones = zoneData.split(',').map(z => z.trim()).filter(z => z !== '');
     if (zones.length === 0) return <span className="text-slate-500 text-[9px]">—</span>;
+    
+    // Check if it's zone names (contains letters) or zone numbers
+    const isNames = /[a-zA-Z]/.test(zoneData);
+    
     return (
       <div className="flex flex-wrap gap-0.5">
         {zones.map((zone, index) => (
           <span key={index} className="inline-flex items-center px-1 py-0.5 rounded text-[8px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 whitespace-nowrap">
-            Z{String(zone).padStart(2, '0')}
+            {isNames ? zone : `Z${String(zone).padStart(2, '0')}`}
           </span>
         ))}
       </div>
@@ -370,7 +332,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
     <>
       <div ref={tableContainerRef} className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden flex flex-col">
         
-        {/* ===== FILTER BAR ===== */}
+        {/* Filter Bar */}
         <div className="sticky top-0 z-20 bg-slate-900/95 border-b border-slate-800 p-2 flex flex-wrap items-center justify-between gap-1.5 backdrop-blur flex-shrink-0">
           <div className="flex items-center gap-1 flex-wrap">
             <span className="text-[9px] text-slate-400 font-mono hidden xs:inline">Filter:</span>
@@ -404,7 +366,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
           </div>
         </div>
 
-        {/* ===== TABLE WRAPPER - Fixed height ===== */}
+        {/* Table */}
         <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 320px)', minHeight: '200px' }}>
           
           {/* DESKTOP */}
@@ -426,6 +388,8 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                 {filteredAlerts.map((alert) => {
                   const isPending = alert.status === 'PENDING';
                   const category = getAlertCategory(alert);
+                  // ===== USE zoneNames IF AVAILABLE =====
+                  const zoneDisplay = alert.zoneNames || alert.zoneNumbers;
                   return (
                     <tr key={alert.id} onClick={() => handleRowClick(alert)} className="hover:bg-slate-900/40 transition-colors cursor-pointer">
                       <td className="py-1.5 px-2"><StatusBadge status={alert.status} /></td>
@@ -437,7 +401,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                           {getCategoryShort(category)}
                         </span>
                       </td>
-                      <td className="py-1.5 px-2">{renderZoneBadges(alert.zoneNumbers)}</td>
+                      <td className="py-1.5 px-2">{renderZoneBadges(zoneDisplay)}</td>
                       <td className="py-1.5 px-2 max-w-[130px]">
                         <button onClick={(e) => handleMessageClick(e, alert)} className="flex items-center gap-1 text-slate-400 hover:text-white transition-colors group w-full min-w-0">
                           <span className="flex-shrink-0">{getMessageIcon(alert.alertType)}</span>
@@ -493,6 +457,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                 {filteredAlerts.map((alert) => {
                   const isPending = alert.status === 'PENDING';
                   const category = getAlertCategory(alert);
+                  const zoneDisplay = alert.zoneNames || alert.zoneNumbers;
                   return (
                     <tr key={alert.id} onClick={() => handleRowClick(alert)} className="hover:bg-slate-900/40 transition-colors cursor-pointer">
                       <td className="py-1 px-1.5"><StatusBadge status={alert.status} /></td>
@@ -504,7 +469,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                           {getCategoryShort(category)}
                         </span>
                       </td>
-                      <td className="py-1 px-1.5">{renderZoneBadges(alert.zoneNumbers)}</td>
+                      <td className="py-1 px-1.5">{renderZoneBadges(zoneDisplay)}</td>
                       <td className="py-1 px-1.5 max-w-[100px]">
                         <button onClick={(e) => handleMessageClick(e, alert)} className="flex items-center gap-0.5 text-slate-400 hover:text-white transition-colors group w-full min-w-0">
                           <span className="flex-shrink-0">{getMessageIcon(alert.alertType)}</span>
@@ -537,6 +502,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
             {filteredAlerts.map((alert) => {
               const isPending = alert.status === 'PENDING';
               const category = getAlertCategory(alert);
+              const zoneDisplay = alert.zoneNames || alert.zoneNumbers;
               return (
                 <div key={alert.id} onClick={() => handleRowClick(alert)} className="p-2.5 hover:bg-slate-900/40 transition-colors cursor-pointer space-y-1">
                   <div className="flex items-center justify-between">
@@ -565,7 +531,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                     <MapPin className="w-2.5 h-2.5 flex-shrink-0" />
                     <span className="truncate max-w-[70px]">{alert.alarmSystem?.location || 'Unknown'}</span>
                     <span className="text-slate-600 mx-0.5">•</span>
-                    {renderZoneBadges(alert.zoneNumbers)}
+                    {renderZoneBadges(zoneDisplay)}
                   </div>
 
                   <div className="flex items-center justify-between gap-1 text-[9px]">
@@ -603,7 +569,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
         </div>
       </div>
 
-      {/* ===== MODALS ===== */}
+      {/* MODALS */}
       <AlertModal alert={selectedAlert} isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
       <AlertDetailsPanel alert={selectedAlert} isOpen={isPanelOpen} onClose={() => setIsPanelOpen(false)} onResolved={handleResolved} username={username} />
       <AlertResolveModal alert={resolveAlertData} isOpen={isResolveModalOpen} onClose={() => { setIsResolveModalOpen(false); setResolveAlertData(null); }} onResolved={handleResolved} username={username} />

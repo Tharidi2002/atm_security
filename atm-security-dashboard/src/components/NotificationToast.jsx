@@ -8,12 +8,10 @@ export default function NotificationToast({ alert, onClose }) {
   const [isClosing, setIsClosing] = useState(false);
 
   useEffect(() => {
-    // Auto close after 8 seconds
     const timer = setTimeout(() => {
       handleClose();
     }, 8000);
-
-    return () => clearTimeout(timer);
+    return () => clearInterval(timer);
   }, []);
 
   const handleClose = () => {
@@ -26,16 +24,20 @@ export default function NotificationToast({ alert, onClose }) {
 
   if (!isVisible || !alert) return null;
 
-  const renderZoneBadges = (zoneNumbers) => {
-    if (!zoneNumbers || zoneNumbers === '00' || zoneNumbers === '0') {
+  // ===== RENDER ZONE NAMES OR NUMBERS =====
+  const renderZoneBadges = (zoneData) => {
+    if (!zoneData || zoneData === '00' || zoneData === '0') {
       return <span className="text-slate-400">No Zone</span>;
     }
 
-    const zones = zoneNumbers.split(',').map(z => z.trim()).filter(z => z !== '');
+    const zones = zoneData.split(',').map(z => z.trim()).filter(z => z !== '');
     
     if (zones.length === 0) {
       return <span className="text-slate-400">No Zone</span>;
     }
+
+    // Check if it's zone names (contains letters) or zone numbers
+    const isNames = /[a-zA-Z]/.test(zoneData);
 
     return (
       <div className="flex flex-wrap gap-3 justify-center">
@@ -44,12 +46,15 @@ export default function NotificationToast({ alert, onClose }) {
             key={index}
             className="px-5 py-2 bg-amber-500/20 text-amber-400 border-2 border-amber-500/40 rounded-xl text-xl font-bold"
           >
-            Zone {String(zone).padStart(2, '0')}
+            {isNames ? zone : `Zone ${String(zone).padStart(2, '0')}`}
           </span>
         ))}
       </div>
     );
   };
+
+  // ===== USE zoneNames IF AVAILABLE, FALLBACK TO zoneNumbers =====
+  const zoneDisplay = alert.zoneNames || alert.zoneNumbers;
 
   return (
     <div className={`fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-300 ${
@@ -59,7 +64,6 @@ export default function NotificationToast({ alert, onClose }) {
         isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'
       }`}>
         
-        {/* Close Button */}
         <button 
           onClick={handleClose}
           className="absolute top-4 right-4 p-2 hover:bg-slate-800 rounded-xl transition-colors"
@@ -67,7 +71,6 @@ export default function NotificationToast({ alert, onClose }) {
           <X className="w-6 h-6 text-slate-400 hover:text-white" />
         </button>
 
-        {/* Header */}
         <div className="text-center mb-6">
           <div className="flex justify-center mb-3">
             <div className="relative">
@@ -83,9 +86,7 @@ export default function NotificationToast({ alert, onClose }) {
           <p className="text-red-400 text-sm font-mono mt-1">Immediate Attention Required</p>
         </div>
 
-        {/* Alert Details */}
         <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-          {/* System Code & Status */}
           <div className="flex flex-wrap items-center justify-center gap-4">
             <StatusBadge status={alert.status} />
             <span className="text-2xl font-mono font-bold text-emerald-400">
@@ -93,22 +94,20 @@ export default function NotificationToast({ alert, onClose }) {
             </span>
           </div>
 
-          {/* Location */}
           <div className="flex items-center justify-center gap-2 text-slate-300 text-lg">
             <MapPin className="w-5 h-5 text-slate-500 flex-shrink-0" />
             <span>{alert.alarmSystem?.location || 'Unknown Location'}</span>
           </div>
 
-          {/* Zones */}
+          {/* ===== ZONES - NOW SHOWING NAMES ===== */}
           <div className="flex flex-col items-center gap-2">
             <div className="flex items-center gap-2 text-slate-400 text-sm">
               <Radio className="w-4 h-4 flex-shrink-0" />
               <span>Affected Zones</span>
             </div>
-            {renderZoneBadges(alert.zoneNumbers)}
+            {renderZoneBadges(zoneDisplay)}
           </div>
 
-          {/* Message Preview */}
           <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 mt-2">
             <p className="text-xs text-slate-500 mb-1 font-mono">📨 Alert Message</p>
             <p className="text-white font-mono text-base break-words">
@@ -116,14 +115,12 @@ export default function NotificationToast({ alert, onClose }) {
             </p>
           </div>
 
-          {/* Time */}
           <div className="flex items-center justify-center gap-2 text-slate-400 text-sm">
             <Clock className="w-4 h-4 flex-shrink-0" />
             <span>Received: {new Date(alert.receivedAt).toLocaleString()}</span>
           </div>
         </div>
 
-        {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-3 mt-6">
           <button
             onClick={handleClose}
@@ -133,7 +130,6 @@ export default function NotificationToast({ alert, onClose }) {
           </button>
           <button
             onClick={() => {
-              // Scroll to alerts table
               const table = document.querySelector('.max-h-\\[600px\\]');
               if (table) {
                 table.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -147,7 +143,6 @@ export default function NotificationToast({ alert, onClose }) {
           </button>
         </div>
 
-        {/* Auto-close timer indicator */}
         <div className="mt-4 flex justify-center">
           <div className="w-32 h-1 bg-slate-800 rounded-full overflow-hidden">
             <div 

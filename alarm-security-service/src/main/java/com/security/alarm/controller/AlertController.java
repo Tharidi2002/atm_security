@@ -20,7 +20,6 @@ public class AlertController {
         this.alertService = alertService;
     }
 
-    // Simulate SMS
     @PostMapping("/sms-simulate")
     public ResponseEntity<AlertLog> simulateSMS(@RequestBody Map<String, String> smsData) {
         String simNumber = smsData.get("simNumber");
@@ -29,15 +28,11 @@ public class AlertController {
         return ResponseEntity.ok(savedLog);
     }
 
-    // Get all alerts
     @GetMapping
     public ResponseEntity<List<AlertLog>> getAllAlerts(@RequestParam(required = false) String username) {
         return ResponseEntity.ok(alertService.getAllAlerts(username));
     }
 
-    // ========== NEW RESOLVE ENDPOINTS ==========
-
-    // Resolve an alert
     @PutMapping("/{id}/resolve")
     public ResponseEntity<?> resolveAlert(
             @PathVariable Long id,
@@ -67,7 +62,6 @@ public class AlertController {
         }
     }
 
-    // Get alert with full details
     @GetMapping("/{id}/details")
     public ResponseEntity<?> getAlertDetails(@PathVariable Long id) {
         AlertLog alert = alertService.getAlertWithDetails(id);
@@ -77,7 +71,6 @@ public class AlertController {
         return ResponseEntity.ok(alert);
     }
 
-    // Get pending alerts count
     @GetMapping("/pending/count")
     public ResponseEntity<Map<String, Object>> getPendingCount() {
         Map<String, Object> response = new HashMap<>();
@@ -86,13 +79,11 @@ public class AlertController {
         return ResponseEntity.ok(response);
     }
 
-    // Get all pending alerts
     @GetMapping("/pending")
     public ResponseEntity<List<AlertLog>> getPendingAlerts() {
         return ResponseEntity.ok(alertService.getPendingAlerts());
     }
 
-    // Get alerts by status
     @GetMapping("/status/{status}")
     public ResponseEntity<List<AlertLog>> getAlertsByStatus(@PathVariable String status) {
         return ResponseEntity.ok(alertService.getAlertsByStatus(status));
