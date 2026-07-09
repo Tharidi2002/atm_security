@@ -5,10 +5,12 @@ import StatsCards from '../components/StatsCards';
 import AlertTable from '../components/AlertTable';
 import NotificationToast from '../components/NotificationToast';
 import AdminPanel from '../components/AdminPanel';
+import UserManual from '../components/UserManual';
 import { useAlerts } from '../hooks/useAlerts';
 
 export default function Dashboard({ user, onLogout }) {
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+  const [isManualOpen, setIsManualOpen] = useState(false);
   const { 
     alerts, 
     loading, 
@@ -29,6 +31,7 @@ export default function Dashboard({ user, onLogout }) {
         user={user} 
         onLogout={onLogout} 
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
+        onOpenManual={() => setIsManualOpen(true)}
         onRefresh={refreshAlerts} 
       />
       
@@ -54,7 +57,6 @@ export default function Dashboard({ user, onLogout }) {
 
         <StatsCards stats={stats} />
         
-        {/* Alerts count badge */}
         <div className="flex justify-between items-center">
           <div className="text-sm text-slate-400">
             Showing <span className="text-white font-bold">{alerts.length}</span> alerts
@@ -82,6 +84,12 @@ export default function Dashboard({ user, onLogout }) {
       <AdminPanel 
         isOpen={isAdminPanelOpen} 
         onClose={() => setIsAdminPanelOpen(false)} 
+      />
+
+      {/* User Manual */}
+      <UserManual 
+        isOpen={isManualOpen} 
+        onClose={() => setIsManualOpen(false)} 
       />
 
       {/* Notification Toast - New alert */}
