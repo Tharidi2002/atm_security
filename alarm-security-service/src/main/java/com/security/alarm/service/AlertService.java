@@ -43,7 +43,8 @@ public class AlertService {
     }
 
     // Process incoming SMS
-    public AlertLog processIncomingSMS(String fromSimNumber, String smsContent) {
+    // Accept optional atmCode — prefer to find system by atmCode first, fallback to SIM number
+    public AlertLog processIncomingSMS(String fromSimNumber, String smsContent, String atmCode) {
         AlertLog alertLog = new AlertLog();
         alertLog.setReceivedAt(LocalDateTime.now());
         
@@ -61,9 +62,38 @@ public class AlertService {
             alertLog.setStatus("PENDING");
         }
 
-        // Find system by SIM number
-        Optional<AlarmSystem> machineOpt = alarmSystemRepository.findBySimNumber(fromSimNumber);
-        
+        // Find system by ATM code if provided, otherwise by SIM number
+        Optional<AlarmSystem> machineOpt = Optional.empty();
+        if (atmCode != null && !atmCode.trim().isEmpty()) {
+            machineOpt = alarmSystemRepository.findBySystemCode(atmCode.trim());
+        }
+        if (machineOpt.isEmpty() && fromSimNumber != null && !fromSimNumber.isEmpty()) {
+            String rawSim = fromSimNumber.trim();
+            // Try exact
+            machineOpt = alarmSystemRepository.findBySimNumber(rawSim);
+
+            // Try digits-only
+            if (machineOpt.isEmpty()) {
+                String digits = rawSim.replaceAll("\\D+", "");
+                if (!digits.isEmpty()) {
+                    machineOpt = alarmSystemRepository.findBySimNumber(digits);
+                }
+            }
+
+            // Try converting +94... to 0... (common Sri Lanka format)
+            if (machineOpt.isEmpty()) {
+                String digits = rawSim.replaceAll("\\D+", "");
+                if (digits.startsWith("94") && digits.length() > 2) {
+                    String local = "0" + digits.substring(2);
+                    machineOpt = alarmSystemRepository.findBySimNumber(local);
+                }
+            }
+        }
+
+        if (atmCode != null && !atmCode.trim().isEmpty() && machineOpt.isEmpty()) {
+            throw new IllegalArgumentException("Invalid ATM Code: " + atmCode);
+        }
+
         if (machineOpt.isPresent()) {
             alertLog.setAlarmSystem(machineOpt.get());
         } else {
@@ -235,6 +265,37 @@ public class AlertService {
             alert.setZoneNames(getZoneNames(alert.getAlarmSystem().getId(), alert.getZoneNumbers()));
         }
         return alert;
+    }
+
+    // Register heartbeat from device (by atmCode or sim number)
+    public void registerHeartbeat(String atmCode, String simNumber) {
+        Optional<AlarmSystem> machineOpt = Optional.empty();
+        if (atmCode != null && !atmCode.trim().isEmpty()) {
+            machineOpt = alarmSystemRepository.findBySystemCode(atmCode.trim());
+        }
+        if (machineOpt.isEmpty() && simNumber != null && !simNumber.trim().isEmpty()) {
+            String rawSim = simNumber.trim();
+            machineOpt = alarmSystemRepository.findBySimNumber(rawSim);
+            if (machineOpt.isEmpty()) {
+                String digits = rawSim.replaceAll("\\D+", "");
+                if (!digits.isEmpty()) machineOpt = alarmSystemRepository.findBySimNumber(digits);
+                if (machineOpt.isEmpty() && digits.startsWith("94") && digits.length() > 2) {
+                    String local = "0" + digits.substring(2);
+                    machineOpt = alarmSystemRepository.findBySimNumber(local);
+                }
+            }
+        }
+
+        if (machineOpt.isPresent()) {
+            AlarmSystem sys = machineOpt.get();
+            sys.setLastStatusChangedAt(java.time.LocalDateTime.now());
+            alarmSystemRepository.save(sys);
+        } else {
+            // if atmCode provided but no match, throw
+            if (atmCode != null && !atmCode.trim().isEmpty()) {
+                throw new IllegalArgumentException("Invalid ATM Code: " + atmCode);
+            }
+        }
     }
 
     public long getPendingCount() {

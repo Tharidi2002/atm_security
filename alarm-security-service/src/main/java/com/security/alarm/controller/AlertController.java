@@ -24,8 +24,28 @@ public class AlertController {
     public ResponseEntity<AlertLog> simulateSMS(@RequestBody Map<String, String> smsData) {
         String simNumber = smsData.get("simNumber");
         String message = smsData.get("message");
-        AlertLog savedLog = alertService.processIncomingSMS(simNumber, message);
-        return ResponseEntity.ok(savedLog);
+        String atmCode = smsData.get("atmCode"); // optional atmCode from ESP
+        try {
+            AlertLog savedLog = alertService.processIncomingSMS(simNumber, message, atmCode);
+            return ResponseEntity.ok(savedLog);
+        } catch (IllegalArgumentException iae) {
+            return ResponseEntity.status(403).build();
+        }
+    }
+
+    @PostMapping("/heartbeat")
+    public ResponseEntity<?> heartbeat(@RequestBody Map<String, String> data) {
+        String atmCode = data.get("atmCode");
+        String simNumber = data.get("simNumber");
+        try {
+            alertService.registerHeartbeat(atmCode, simNumber);
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("success", true);
+            resp.put("message", "Heartbeat recorded");
+            return ResponseEntity.ok(resp);
+        } catch (IllegalArgumentException iae) {
+            return ResponseEntity.status(403).body("Invalid ATM Code");
+        }
     }
 
     @GetMapping
