@@ -4,7 +4,7 @@ import {
   X, UserPlus, ShieldAlert, Check, Plus, AlertCircle, Users, Cpu, 
   ToggleLeft, ToggleRight, Edit2, Trash2, Save, Eye, EyeOff,
   RefreshCw, Zap, Copy, CheckCircle as CheckCircleIcon,
-  Key, Lock
+  Key, Lock, Layers
 } from 'lucide-react';
 import { 
   fetchUsers, 
@@ -17,6 +17,7 @@ import {
   deleteSystem,
   resetUserPassword
 } from '../services/api';
+import ZoneManagement from './ZoneManagement';
 
 export default function AdminPanel({ isOpen, onClose }) {
   const [activeTab, setActiveTab] = useState('USERS');
@@ -50,6 +51,11 @@ export default function AdminPanel({ isOpen, onClose }) {
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+
+  // Zone Management states
+  const [zoneManagementOpen, setZoneManagementOpen] = useState(false);
+  const [selectedSystemId, setSelectedSystemId] = useState(null);
+  const [selectedSystemCode, setSelectedSystemCode] = useState('');
 
   const [timeNow, setTimeNow] = useState(new Date());
 
@@ -718,6 +724,18 @@ export default function AdminPanel({ isOpen, onClose }) {
                             </button>
 
                             <button
+                              onClick={() => {
+                                setSelectedSystemId(sys.id);
+                                setSelectedSystemCode(sys.systemCode);
+                                setZoneManagementOpen(true);
+                              }}
+                              title="Manage Zones"
+                              className="p-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg transition-all"
+                            >
+                              <Layers className="w-4 h-4" />
+                            </button>
+
+                            <button
                               onClick={() => handleDeleteSystem(sys.id, sys.systemCode)}
                               title="Delete System"
                               className="p-1.5 bg-red-500/10 hover:bg-red-650 text-red-400 hover:text-white border border-red-500/20 hover:border-red-500 rounded-lg transition-all"
@@ -895,6 +913,19 @@ export default function AdminPanel({ isOpen, onClose }) {
           </div>
         </div>
       )}
+
+      {/* Zone Management Modal */}
+      <ZoneManagement
+        systemId={selectedSystemId}
+        systemCode={selectedSystemCode}
+        isOpen={zoneManagementOpen}
+        onClose={() => {
+          setZoneManagementOpen(false);
+          setSelectedSystemId(null);
+          setSelectedSystemCode('');
+          loadData(); // Refresh to update zone counts if needed
+        }}
+      />
     </div>
   );
 }

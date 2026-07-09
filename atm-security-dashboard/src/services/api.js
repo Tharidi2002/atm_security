@@ -162,3 +162,46 @@ export const resetUserPassword = async (userId, newPassword) => {
   }
   return await response.json();
 };
+
+// ===== ZONE MANAGEMENT =====
+
+export const fetchZones = async (systemId) => {
+  const response = await fetch(`${API_BASE_URL}/admin/zones/system/${systemId}`);
+  if (!response.ok) throw new Error('Failed to fetch zones');
+  return await response.json();
+};
+
+export const updateZone = async (zoneId, zoneData) => {
+  const response = await fetch(`${API_BASE_URL}/admin/zones/${zoneId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(zoneData),
+  });
+  if (!response.ok) throw new Error('Failed to update zone');
+  return await response.json();
+};
+
+export const bulkUpdateZones = async (systemId, zoneUpdates) => {
+  const response = await fetch(`${API_BASE_URL}/admin/zones/system/${systemId}/bulk`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(zoneUpdates),
+  });
+  if (!response.ok) throw new Error('Failed to update zones');
+  return await response.json();
+};
+
+export const resetZones = async (systemId) => {
+  const response = await fetch(`${API_BASE_URL}/admin/zones/system/${systemId}/reset`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!response.ok) throw new Error('Failed to reset zones');
+  return await response.json();
+};
+
+export const fetchZoneTypes = async () => {
+  const response = await fetch(`${API_BASE_URL}/admin/zones/types`);
+  if (!response.ok) throw new Error('Failed to fetch zone types');
+  return await response.json();
+};

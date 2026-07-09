@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import com.security.alarm.entity.AlarmZone;
+import com.security.alarm.repository.AlarmZoneRepository;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -25,15 +27,19 @@ public class AdminController {
     private final UserSystemRepository userSystemRepository;
     private final AlarmSystemRepository alarmSystemRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AlarmZoneRepository alarmZoneRepository;
+
 
     public AdminController(UserRepository userRepository,
                            UserSystemRepository userSystemRepository,
                            AlarmSystemRepository alarmSystemRepository,
-                           PasswordEncoder passwordEncoder) {
+                           PasswordEncoder passwordEncoder,
+                           AlarmZoneRepository alarmZoneRepository) {
         this.userRepository = userRepository;
         this.userSystemRepository = userSystemRepository;
         this.alarmSystemRepository = alarmSystemRepository;
         this.passwordEncoder = passwordEncoder;
+        this.alarmZoneRepository = alarmZoneRepository;
     }
 
     // ========== USER MANAGEMENT ==========
@@ -204,7 +210,34 @@ public class AdminController {
         newSystem.setLastStatusChangedAt(LocalDateTime.now());
 
         AlarmSystem saved = alarmSystemRepository.save(newSystem);
+
+        // ===== AUTO-CREATE DEFAULT ZONES (24 zones) =====
+        createDefaultZones(saved);
+
         return ResponseEntity.ok(saved);
+    }
+
+    // ===== NEW: Create default zones =====
+    private void createDefaultZones(AlarmSystem system) {
+        String[] defaultZoneNames = {
+            "Main Entrance", "Cash Counter", "Lobby", "Server Room",
+            "Back Office", "Vault Room", "Emergency Exit", "Parking Area",
+            "Store Room", "Rest Room", "Corridor 1", "Corridor 2",
+            "Main Hall", "Conference Room", "Security Room", "Generator Room",
+            "Wired Zone 1", "Wired Zone 2", "Wired Zone 3", "Wired Zone 4",
+            "Wired Zone 5", "Wired Zone 6", "Wired Zone 7", "Wired Zone 8"
+        };
+
+        for (int i = 0; i < 24; i++) {
+            AlarmZone zone = new AlarmZone();
+            zone.setAlarmSystem(system);
+            zone.setZoneNumber(i + 1);
+            zone.setZoneName(defaultZoneNames[i]);
+            zone.setZoneType(1); // PERIMETER
+            zone.setIsActive(true);
+            zone.setDescription("Default zone " + (i + 1));
+            alarmZoneRepository.save(zone);
+        }
     }
 
     @GetMapping("/systems/{id}")
