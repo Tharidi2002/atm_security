@@ -3,21 +3,23 @@ package com.security.alarm.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
 @Table(name = "alarm_zones")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class AlarmZone {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // ===== FIX: Add cascade delete =====
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "system_id", nullable = false)
+    @JsonIgnoreProperties({"zones", "hibernateLazyInitializer", "handler"})
     private AlarmSystem alarmSystem;
 
     @Column(name = "zone_number", nullable = false)
@@ -34,6 +36,9 @@ public class AlarmZone {
 
     @Column(name = "description", length = 255)
     private String description;
+
+    @Column(name = "zone_category", length = 20)
+    private String zoneCategory = "WIRELESS";
 
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();

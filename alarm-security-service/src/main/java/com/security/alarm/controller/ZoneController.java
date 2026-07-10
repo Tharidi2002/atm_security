@@ -26,7 +26,6 @@ public class ZoneController {
         this.alarmSystemRepository = alarmSystemRepository;
     }
 
-    // ===== GET ALL ZONES FOR A SYSTEM =====
     @GetMapping("/system/{systemId}")
     public ResponseEntity<?> getZonesBySystem(@PathVariable Long systemId) {
         Optional<AlarmSystem> systemOpt = alarmSystemRepository.findById(systemId);
@@ -41,98 +40,88 @@ public class ZoneController {
         response.put("systemCode", systemOpt.get().getSystemCode());
         response.put("zones", zones);
         
+        long wirelessCount = zones.stream().filter(z -> "WIRELESS".equals(z.getZoneCategory())).count();
+        long wiredCount = zones.stream().filter(z -> "WIRED".equals(z.getZoneCategory())).count();
+        long activeCount = zones.stream().filter(z -> z.getIsActive()).count();
+        long inactiveCount = zones.stream().filter(z -> !z.getIsActive()).count();
+        
+        response.put("wirelessCount", wirelessCount);
+        response.put("wiredCount", wiredCount);
+        response.put("activeCount", activeCount);
+        response.put("inactiveCount", inactiveCount);
+        
         return ResponseEntity.ok(response);
     }
 
-    // ===== UPDATE ZONE =====
     @PutMapping("/{zoneId}")
     public ResponseEntity<?> updateZone(@PathVariable Long zoneId, @RequestBody Map<String, Object> payload) {
-        Optional<AlarmZone> zoneOpt = alarmZoneRepository.findById(zoneId);
-        if (zoneOpt.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        AlarmZone zone = zoneOpt.get();
-        
-        // Update zone name
-        if (payload.containsKey("zoneName")) {
-            String newName = (String) payload.get("zoneName");
-            if (newName != null && !newName.trim().isEmpty()) {
-                zone.setZoneName(newName.trim());
+        try {
+            Optional<AlarmZone> zoneOpt = alarmZoneRepository.findById(zoneId);
+            if (zoneOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
             }
-        }
-        
-        // Update zone type
-        if (payload.containsKey("zoneType")) {
-            Integer newType = (Integer) payload.get("zoneType");
-            if (newType != null && newType >= 0 && newType <= 8) {
-                zone.setZoneType(newType);
-            }
-        }
-        
-        // Update active status
-        if (payload.containsKey("isActive")) {
-            Boolean isActive = (Boolean) payload.get("isActive");
-            if (isActive != null) {
-                zone.setIsActive(isActive);
-            }
-        }
-        
-        // Update description
-        if (payload.containsKey("description")) {
-            String description = (String) payload.get("description");
-            zone.setDescription(description);
-        }
-        
-        zone.setUpdatedAt(LocalDateTime.now());
-        
-        AlarmZone updated = alarmZoneRepository.save(zone);
-        return ResponseEntity.ok(updated);
-    }
 
-    // ===== BULK UPDATE ZONES =====
-    @PutMapping("/system/{systemId}/bulk")
-    public ResponseEntity<?> bulkUpdateZones(@PathVariable Long systemId, 
-                                              @RequestBody List<Map<String, Object>> zoneUpdates) {
-        Optional<AlarmSystem> systemOpt = alarmSystemRepository.findById(systemId);
-        if (systemOpt.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        List<AlarmZone> existingZones = alarmZoneRepository.findByAlarmSystemIdOrderByZoneNumberAsc(systemId);
-        
-        for (Map<String, Object> update : zoneUpdates) {
-            Integer zoneNumber = (Integer) update.get("zoneNumber");
-            String zoneName = (String) update.get("zoneName");
-            Integer zoneType = (Integer) update.get("zoneType");
-            Boolean isActive = (Boolean) update.get("isActive");
+            AlarmZone zone = zoneOpt.get();
             
-            if (zoneNumber != null) {
-                Optional<AlarmZone> zoneOpt = existingZones.stream()
-                    .filter(z -> z.getZoneNumber().equals(zoneNumber))
-                    .findFirst();
-                
-                if (zoneOpt.isPresent()) {
-                    AlarmZone zone = zoneOpt.get();
-                    if (zoneName != null && !zoneName.trim().isEmpty()) {
-                        zone.setZoneName(zoneName.trim());
+            if (payload.containsKey("zoneName")) {
+                Object nameObj = payload.get("zoneName");
+                if (nameObj != null) {
+                    String newName = nameObj.toString();
+                    if (!newName.trim().isEmpty()) {
+                        zone.setZoneName(newName.trim());
                     }
-                    if (zoneType != null && zoneType >= 0 && zoneType <= 8) {
-                        zone.setZoneType(zoneType);
-                    }
-                    if (isActive != null) {
-                        zone.setIsActive(isActive);
-                    }
-                    zone.setUpdatedAt(LocalDateTime.now());
                 }
             }
+            
+            if (payload.containsKey("zoneType")) {
+                Object typeObj = payload.get("zoneType");
+                if (typeObj != null) {
+                    try {
+                        Integer newType = Integer.parseInt(typeObj.toString());
+                        if (newType >= 0 && newType <= 8) {
+                            zone.setZoneType(newType);
+                        }
+                    } catch (NumberFormatException e) {
+                        // Ignore invalid type
+                    }
+                }
+            }
+            
+            if (payload.containsKey("isActive")) {
+                Object activeObj = payload.get("isActive");
+                if (activeObj != null) {
+                    Boolean isActive = Boolean.parseBoolean(activeObj.toString());
+                    zone.setIsActive(isActive);
+                }
+            }
+            
+            if (payload.containsKey("description")) {
+                Object descObj = payload.get("description");
+                if (descObj != null) {
+                    zone.setDescription(descObj.toString());
+                }
+            }
+            
+            zone.setUpdatedAt(LocalDateTime.now());
+            
+            AlarmZone updated = alarmZoneRepository.save(zone);
+            
+            // ===== FIX: Load the system to avoid proxy issues =====
+            if (updated.getAlarmSystem() != null) {
+                Long systemId = updated.getAlarmSystem().getId();
+                alarmSystemRepository.findById(systemId).ifPresent(updated::setAlarmSystem);
+            }
+            
+            return ResponseEntity.ok(updated);
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(500).body(error);
         }
-        
-        alarmZoneRepository.saveAll(existingZones);
-        return ResponseEntity.ok(existingZones);
     }
 
-    // ===== RESET ZONES TO DEFAULT =====
     @PostMapping("/system/{systemId}/reset")
     public ResponseEntity<?> resetZonesToDefault(@PathVariable Long systemId) {
         Optional<AlarmSystem> systemOpt = alarmSystemRepository.findById(systemId);
@@ -140,27 +129,41 @@ public class ZoneController {
             return ResponseEntity.notFound().build();
         }
 
-        // Delete existing zones
         alarmZoneRepository.deleteBySystemId(systemId);
         
-        // Create default zones (1-24)
-        String[] defaultZoneNames = {
+        String[] wirelessZoneNames = {
             "Main Entrance", "Cash Counter", "Lobby", "Server Room",
             "Back Office", "Vault Room", "Emergency Exit", "Parking Area",
             "Store Room", "Rest Room", "Corridor 1", "Corridor 2",
-            "Main Hall", "Conference Room", "Security Room", "Generator Room",
+            "Main Hall", "Conference Room", "Security Room", "Generator Room"
+        };
+
+        String[] wiredZoneNames = {
             "Wired Zone 1", "Wired Zone 2", "Wired Zone 3", "Wired Zone 4",
             "Wired Zone 5", "Wired Zone 6", "Wired Zone 7", "Wired Zone 8"
         };
 
-        for (int i = 0; i < 24; i++) {
+        for (int i = 0; i < wirelessZoneNames.length; i++) {
             AlarmZone zone = new AlarmZone();
             zone.setAlarmSystem(systemOpt.get());
             zone.setZoneNumber(i + 1);
-            zone.setZoneName(defaultZoneNames[i]);
-            zone.setZoneType(1); // PERIMETER
+            zone.setZoneName(wirelessZoneNames[i]);
+            zone.setZoneType(1);
             zone.setIsActive(true);
-            zone.setDescription("Default zone " + (i + 1));
+            zone.setZoneCategory("WIRELESS");
+            zone.setDescription("Wireless zone " + (i + 1));
+            alarmZoneRepository.save(zone);
+        }
+
+        for (int i = 0; i < wiredZoneNames.length; i++) {
+            AlarmZone zone = new AlarmZone();
+            zone.setAlarmSystem(systemOpt.get());
+            zone.setZoneNumber(i + 17);
+            zone.setZoneName(wiredZoneNames[i]);
+            zone.setZoneType(1);
+            zone.setIsActive(true);
+            zone.setZoneCategory("WIRED");
+            zone.setDescription("Wired zone " + (i + 1));
             alarmZoneRepository.save(zone);
         }
 
@@ -168,7 +171,6 @@ public class ZoneController {
         return ResponseEntity.ok(zones);
     }
 
-    // ===== GET ZONE TYPES =====
     @GetMapping("/types")
     public ResponseEntity<List<Map<String, Object>>> getZoneTypes() {
         List<Map<String, Object>> types = List.of(

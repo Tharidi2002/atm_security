@@ -2,12 +2,15 @@ package com.security.alarm.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "alarm_systems")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class AlarmSystem {
     
     @Id
@@ -26,5 +29,5 @@ public class AlarmSystem {
     private String status = "ACTIVE";
 
     @Column(name = "last_status_changed_at")
-    private java.time.LocalDateTime lastStatusChangedAt = java.time.LocalDateTime.now();
+    private LocalDateTime lastStatusChangedAt = LocalDateTime.now();
 }

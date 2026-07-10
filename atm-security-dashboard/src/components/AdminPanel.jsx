@@ -803,8 +803,7 @@ export default function AdminPanel({ isOpen, onClose }) {
                             >
                               <Layers className="w-4 h-4" />
                             </button>
-
-                            <button
+                           <button
                               onClick={() => handleDeleteSystem(sys.id, sys.systemCode)}
                               title="Delete System"
                               className="p-1.5 bg-red-500/10 hover:bg-red-650 text-red-400 hover:text-white border border-red-500/20 hover:border-red-500 rounded-lg transition-all"

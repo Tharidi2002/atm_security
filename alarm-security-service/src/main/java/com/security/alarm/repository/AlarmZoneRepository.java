@@ -14,7 +14,6 @@ public interface AlarmZoneRepository extends JpaRepository<AlarmZone, Long> {
     
     Optional<AlarmZone> findByAlarmSystemIdAndZoneNumber(Long systemId, Integer zoneNumber);
     
-    // ===== FIX: Delete all zones by system ID =====
     @Modifying
     @Transactional
     @Query("DELETE FROM AlarmZone z WHERE z.alarmSystem.id = :systemId")

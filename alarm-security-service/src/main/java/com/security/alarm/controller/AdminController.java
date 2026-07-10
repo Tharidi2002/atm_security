@@ -221,23 +221,43 @@ public class AdminController {
 
     // ===== NEW: Create default zones =====
     private void createDefaultZones(AlarmSystem system) {
-        String[] defaultZoneNames = {
+        // Wireless Zones (01-16)
+        String[] wirelessZoneNames = {
             "Main Entrance", "Cash Counter", "Lobby", "Server Room",
             "Back Office", "Vault Room", "Emergency Exit", "Parking Area",
             "Store Room", "Rest Room", "Corridor 1", "Corridor 2",
-            "Main Hall", "Conference Room", "Security Room", "Generator Room",
+            "Main Hall", "Conference Room", "Security Room", "Generator Room"
+        };
+
+        // Wired Zones (17-24)
+        String[] wiredZoneNames = {
             "Wired Zone 1", "Wired Zone 2", "Wired Zone 3", "Wired Zone 4",
             "Wired Zone 5", "Wired Zone 6", "Wired Zone 7", "Wired Zone 8"
         };
 
-        for (int i = 0; i < 24; i++) {
+        // Create Wireless Zones (1-16)
+        for (int i = 0; i < wirelessZoneNames.length; i++) {
             AlarmZone zone = new AlarmZone();
             zone.setAlarmSystem(system);
             zone.setZoneNumber(i + 1);
-            zone.setZoneName(defaultZoneNames[i]);
-            zone.setZoneType(1); // PERIMETER
+            zone.setZoneName(wirelessZoneNames[i]);
+            zone.setZoneType(1);
             zone.setIsActive(true);
-            zone.setDescription("Default zone " + (i + 1));
+            zone.setZoneCategory("WIRELESS");
+            zone.setDescription("Wireless zone " + (i + 1));
+            alarmZoneRepository.save(zone);
+        }
+
+        // Create Wired Zones (17-24)
+        for (int i = 0; i < wiredZoneNames.length; i++) {
+            AlarmZone zone = new AlarmZone();
+            zone.setAlarmSystem(system);
+            zone.setZoneNumber(i + 17);
+            zone.setZoneName(wiredZoneNames[i]);
+            zone.setZoneType(1);
+            zone.setIsActive(true);
+            zone.setZoneCategory("WIRED");
+            zone.setDescription("Wired zone " + (i + 1));
             alarmZoneRepository.save(zone);
         }
     }
