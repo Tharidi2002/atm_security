@@ -17,6 +17,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import com.security.alarm.entity.AlarmZone;
 import com.security.alarm.repository.AlarmZoneRepository;
+import com.security.alarm.repository.AlarmZoneRepository;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -31,16 +32,17 @@ public class AdminController {
 
 
     public AdminController(UserRepository userRepository,
-                           UserSystemRepository userSystemRepository,
-                           AlarmSystemRepository alarmSystemRepository,
-                           PasswordEncoder passwordEncoder,
-                           AlarmZoneRepository alarmZoneRepository) {
+                        UserSystemRepository userSystemRepository,
+                        AlarmSystemRepository alarmSystemRepository,
+                        PasswordEncoder passwordEncoder,
+                        AlarmZoneRepository alarmZoneRepository) {
         this.userRepository = userRepository;
         this.userSystemRepository = userSystemRepository;
         this.alarmSystemRepository = alarmSystemRepository;
         this.passwordEncoder = passwordEncoder;
-        this.alarmZoneRepository = alarmZoneRepository;
+        this.alarmZoneRepository = alarmZoneRepository;  
     }
+
 
     // ========== USER MANAGEMENT ==========
 
@@ -313,7 +315,13 @@ public class AdminController {
             return ResponseEntity.notFound().build();
         }
         
-        alarmSystemRepository.deleteById(id);
-        return ResponseEntity.ok("System deleted successfully");
+        try {
+            // ===== FIX: Delete zones first, then system =====
+            alarmZoneRepository.deleteBySystemId(id);
+            alarmSystemRepository.deleteById(id);
+            return ResponseEntity.ok("System deleted successfully");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Failed to delete system: " + e.getMessage());
+        }
     }
 }

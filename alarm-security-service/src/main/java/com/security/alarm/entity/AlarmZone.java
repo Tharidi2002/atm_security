@@ -2,6 +2,7 @@ package com.security.alarm.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "alarm_zones")
@@ -14,7 +15,8 @@ public class AlarmZone {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    // ===== FIX: Add cascade delete =====
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "system_id", nullable = false)
     private AlarmSystem alarmSystem;
 
@@ -24,9 +26,8 @@ public class AlarmZone {
     @Column(name = "zone_name", nullable = false, length = 100)
     private String zoneName;
 
-    // ===== NEW FIELDS =====
     @Column(name = "zone_type", nullable = false)
-    private Integer zoneType = 1; // 0=OFF, 1=PERIMETER, 2=DELAY, 3=AWAY, 4=24HR, 5=MUTE, 6=EXIT, 7=BELL, 8=SOS
+    private Integer zoneType = 1;
 
     @Column(name = "is_active")
     private Boolean isActive = true;
@@ -35,8 +36,8 @@ public class AlarmZone {
     private String description;
 
     @Column(name = "created_at")
-    private java.time.LocalDateTime createdAt = java.time.LocalDateTime.now();
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "updated_at")
-    private java.time.LocalDateTime updatedAt = java.time.LocalDateTime.now();
+    private LocalDateTime updatedAt = LocalDateTime.now();
 }
