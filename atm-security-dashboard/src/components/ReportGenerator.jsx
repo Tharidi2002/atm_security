@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { 
   X, FileText, Download, Printer,
   RefreshCw, AlertCircle, CheckCircle,
-  FileSpreadsheet, Clock, Zap
+  FileSpreadsheet, Clock, Zap, Calendar
 } from 'lucide-react';
 
 const API_BASE_URL = 'http://localhost:8080/api';
@@ -15,6 +15,7 @@ export default function ReportGenerator({ isOpen, onClose, user }) {
   const [toDate, setToDate] = useState('');
   const [selectedSystem, setSelectedSystem] = useState('ALL');
   const [systems, setSystems] = useState([]);
+  const [systemsLoading, setSystemsLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [summaryData, setSummaryData] = useState(null);
@@ -24,7 +25,10 @@ export default function ReportGenerator({ isOpen, onClose, user }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // ===== GET TODAY'S DATE IN LOCAL TIMEZONE =====
+  const fromInputRef = useRef(null);
+  const toInputRef = useRef(null);
+
+  // ===== GET LOCAL DATE STRING =====
   const getLocalDateStr = (date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -34,60 +38,88 @@ export default function ReportGenerator({ isOpen, onClose, user }) {
 
   // ===== LOAD SYSTEMS =====
   const loadSystems = useCallback(async () => {
+    setSystemsLoading(true);
     try {
       const params = new URLSearchParams();
       if (user.role === 'USER') {
         params.append('username', user.username);
       }
-      const response = await fetch(`${API_BASE_URL}/reports/systems?${params}`);
+      const url = `${API_BASE_URL}/reports/systems${params.toString() ? ('?' + params.toString()) : ''}`;
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
-        setSystems(data);
+        setSystems(Array.isArray(data) ? data : []);
+      } else {
+        console.error('Failed to load systems:', response.statusText);
+        setSystems([]);
       }
     } catch (err) {
       console.error('Failed to load systems:', err);
+      setSystems([]);
+    } finally {
+      setSystemsLoading(false);
     }
   }, [user.role, user.username]);
 
-  // ===== SET DEFAULT DATES =====
-  const setDefaultDates = () => {
-    const now = new Date();
-    const from = new Date();
-    from.setDate(now.getDate() - 30);
-    setFromDate(getLocalDateStr(from));
-    setToDate(getLocalDateStr(now));
-  };
-
-  // ===== UPDATE DATES FOR RANGE =====
+  // ===== UPDATE DATES FOR RANGE - FIXED =====
   const updateDatesForRange = (range) => {
     const now = new Date();
-    const from = new Date();
+    let from = new Date();
+    let to = new Date();
 
     switch(range) {
       case 'today':
-        setFromDate(getLocalDateStr(now));
-        setToDate(getLocalDateStr(now));
+        // Today - same day
+        from = new Date(now);
+        to = new Date(now);
         break;
+        
       case 'this_week':
-        from.setDate(now.getDate() - 7);
-        setFromDate(getLocalDateStr(from));
-        setToDate(getLocalDateStr(now));
+        // This Week - ISO week starting Monday to Sunday
+        // getDay(): 0=Sunday .. 6=Saturday, convert so Monday=1..Sunday=7
+        {
+          const jsDay = now.getDay();
+          const isoDay = jsDay === 0 ? 7 : jsDay; // 1..7 where 1=Monday
+          // calculate Monday of this week
+          from = new Date(now);
+          from.setDate(now.getDate() - (isoDay - 1));
+          from.setHours(0, 0, 0, 0);
+
+          to = new Date(from);
+          to.setDate(from.getDate() + 6);
+          to.setHours(23, 59, 59, 999);
+        }
         break;
+        
       case 'this_month':
-        from.setDate(now.getDate() - 30);
-        setFromDate(getLocalDateStr(from));
-        setToDate(getLocalDateStr(now));
+        // This Month - 1st to last day
+        from = new Date(now.getFullYear(), now.getMonth(), 1);
+        to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         break;
+        
       case 'last_month':
-        from.setDate(now.getDate() - 60);
-        setFromDate(getLocalDateStr(from));
-        setToDate(getLocalDateStr(now));
+        // Last Month - 1st to last day of previous month
+        from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        to = new Date(now.getFullYear(), now.getMonth(), 0);
         break;
+        
       case 'custom':
-        break;
+        // Clear dates so the date inputs start blank for manual calendar selection
+        setFromDate('');
+        setToDate('');
+        return;
+        
       default:
         break;
     }
+
+    setFromDate(getLocalDateStr(from));
+    setToDate(getLocalDateStr(to));
+  };
+
+  // ===== SET DEFAULT DATES =====
+  const setDefaultDates = () => {
+    updateDatesForRange('this_month');
   };
 
   // ===== HANDLE DATE RANGE CHANGE =====
@@ -95,8 +127,15 @@ export default function ReportGenerator({ isOpen, onClose, user }) {
     setDateRange(range);
     updateDatesForRange(range);
   };
+  
+  // Focus the from input when switching to custom
+  useEffect(() => {
+    if (dateRange === 'custom') {
+      setTimeout(() => fromInputRef.current?.focus(), 50);
+    }
+  }, [dateRange]);
 
-  // ===== GENERATE REPORT BASED ON TYPE =====
+  // ===== GENERATE REPORT =====
   const generateReport = useCallback(async () => {
     if (!fromDate || !toDate) {
       setError('Please select valid dates');
@@ -129,10 +168,10 @@ export default function ReportGenerator({ isOpen, onClose, user }) {
           endpoint = `${API_BASE_URL}/reports/detailed`;
           break;
         case 'health':
-          endpoint = `${API_BASE_URL}/reports/health?${params}`;
+          endpoint = `${API_BASE_URL}/reports/health`;
           break;
         case 'performance':
-          endpoint = `${API_BASE_URL}/reports/performance?${params}`;
+          endpoint = `${API_BASE_URL}/reports/performance`;
           break;
         default:
           endpoint = `${API_BASE_URL}/reports/summary`;
@@ -146,7 +185,6 @@ export default function ReportGenerator({ isOpen, onClose, user }) {
       
       data = await response.json();
 
-      // Set data based on report type
       switch(reportType) {
         case 'summary':
           setSummaryData(data);
@@ -277,7 +315,7 @@ export default function ReportGenerator({ isOpen, onClose, user }) {
 
   if (!isOpen) return null;
 
-  // ===== RENDER CONTENT BASED ON REPORT TYPE =====
+  // ===== RENDER CONTENT =====
   const renderContent = () => {
     if (loading) {
       return (
@@ -314,7 +352,6 @@ export default function ReportGenerator({ isOpen, onClose, user }) {
           <StatCard label="Avg Resolution" value={formatDuration(summaryData.avgResolutionSeconds)} color="yellow" icon={<Zap className="w-5 h-5" />} />
         </div>
 
-        {/* By System */}
         {summaryData.bySystem && Object.keys(summaryData.bySystem).length > 0 && (
           <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-4">
             <h3 className="text-sm font-bold text-white mb-3">📊 Alerts by System</h3>
@@ -336,7 +373,6 @@ export default function ReportGenerator({ isOpen, onClose, user }) {
           </div>
         )}
 
-        {/* By Zone */}
         {summaryData.byZone && Object.keys(summaryData.byZone).length > 0 && (
           <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-4">
             <h3 className="text-sm font-bold text-white mb-3">📍 Alerts by Zone</h3>
@@ -354,7 +390,6 @@ export default function ReportGenerator({ isOpen, onClose, user }) {
           </div>
         )}
 
-        {/* Resolved By */}
         {summaryData.resolvedBy && Object.keys(summaryData.resolvedBy).length > 0 && (
           <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-4">
             <h3 className="text-sm font-bold text-white mb-3">👤 Resolved By</h3>
@@ -369,7 +404,6 @@ export default function ReportGenerator({ isOpen, onClose, user }) {
           </div>
         )}
 
-        {/* Daily Trend */}
         {summaryData.dailyTrend && Object.keys(summaryData.dailyTrend).length > 0 && (
           <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-4">
             <h3 className="text-sm font-bold text-white mb-3">📈 Daily Trend</h3>
@@ -599,6 +633,7 @@ export default function ReportGenerator({ isOpen, onClose, user }) {
                 <div className="flex items-center gap-2">
                   <input
                     type="date"
+                    ref={fromInputRef}
                     value={fromDate}
                     onChange={(e) => {
                       setFromDate(e.target.value);
@@ -609,6 +644,17 @@ export default function ReportGenerator({ isOpen, onClose, user }) {
                     }`}
                     disabled={dateRange !== 'custom'}
                   />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (dateRange !== 'custom') handleDateRangeChange('custom');
+                      setTimeout(() => fromInputRef.current?.focus(), 50);
+                    }}
+                    className="p-1 rounded-md text-slate-400 hover:text-white"
+                    aria-label="Open from calendar"
+                  >
+                    <Calendar className="w-5 h-5" />
+                  </button>
                   <span className="text-slate-500 text-sm font-mono hidden sm:inline">{formatDateDisplay(fromDate)}</span>
                 </div>
               </div>
@@ -618,6 +664,7 @@ export default function ReportGenerator({ isOpen, onClose, user }) {
                 <div className="flex items-center gap-2">
                   <input
                     type="date"
+                    ref={toInputRef}
                     value={toDate}
                     onChange={(e) => {
                       setToDate(e.target.value);
@@ -628,6 +675,17 @@ export default function ReportGenerator({ isOpen, onClose, user }) {
                     }`}
                     disabled={dateRange !== 'custom'}
                   />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (dateRange !== 'custom') handleDateRangeChange('custom');
+                      setTimeout(() => toInputRef.current?.focus(), 50);
+                    }}
+                    className="p-1 rounded-md text-slate-400 hover:text-white"
+                    aria-label="Open to calendar"
+                  >
+                    <Calendar className="w-5 h-5" />
+                  </button>
                   <span className="text-slate-500 text-sm font-mono hidden sm:inline">{formatDateDisplay(toDate)}</span>
                 </div>
               </div>
@@ -637,16 +695,30 @@ export default function ReportGenerator({ isOpen, onClose, user }) {
           {/* SYSTEM FILTER */}
           <div className="mb-6">
             <label className="text-xs font-bold tracking-wide uppercase text-slate-400 font-mono block mb-2">🔍 System</label>
-            <select
-              value={selectedSystem}
-              onChange={(e) => setSelectedSystem(e.target.value)}
-              className="w-full sm:w-64 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50"
-            >
-              <option value="ALL">📊 All Systems</option>
-              {systems.map((sys) => (
-                <option key={sys.id} value={sys.systemCode}>{sys.systemCode}</option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedSystem}
+                onChange={(e) => setSelectedSystem(e.target.value)}
+                className="w-full sm:w-64 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50"
+              >
+                <option value="ALL">📊 All Systems</option>
+                {systems.map((sys) => (
+                  <option key={sys.id} value={sys.systemCode}>{sys.systemCode}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={loadSystems}
+                className="p-2 rounded-md text-slate-400 hover:text-white"
+                title="Reload systems"
+              >
+                {systemsLoading ? (
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin block" />
+                ) : (
+                  <RefreshCw className="w-5 h-5" />
+                )}
+              </button>
+            </div>
           </div>
 
           {/* ACTIONS */}
