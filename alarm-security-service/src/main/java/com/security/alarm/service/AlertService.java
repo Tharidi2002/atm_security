@@ -43,7 +43,6 @@ public class AlertService {
     }
 
     // Process incoming SMS
-    // Accept optional atmCode — prefer to find system by atmCode first, fallback to SIM number
     public AlertLog processIncomingSMS(String fromSimNumber, String smsContent, String atmCode) {
         AlertLog alertLog = new AlertLog();
         alertLog.setReceivedAt(LocalDateTime.now());
@@ -69,10 +68,8 @@ public class AlertService {
         }
         if (machineOpt.isEmpty() && fromSimNumber != null && !fromSimNumber.isEmpty()) {
             String rawSim = fromSimNumber.trim();
-            // Try exact
             machineOpt = alarmSystemRepository.findBySimNumber(rawSim);
 
-            // Try digits-only
             if (machineOpt.isEmpty()) {
                 String digits = rawSim.replaceAll("\\D+", "");
                 if (!digits.isEmpty()) {
@@ -80,7 +77,6 @@ public class AlertService {
                 }
             }
 
-            // Try converting +94... to 0... (common Sri Lanka format)
             if (machineOpt.isEmpty()) {
                 String digits = rawSim.replaceAll("\\D+", "");
                 if (digits.startsWith("94") && digits.length() > 2) {
@@ -112,7 +108,6 @@ public class AlertService {
                 alertLog.setZoneNumber(0);
             }
             
-            // ===== NEW: Get zone names from DB =====
             if (machineOpt.isPresent()) {
                 String zoneNames = getZoneNames(machineOpt.get().getId(), zoneNumbers);
                 alertLog.setZoneNames(zoneNames);
@@ -129,7 +124,6 @@ public class AlertService {
         return alertLogRepository.save(alertLog);
     }
 
-    // ===== NEW: Get zone names from zone numbers =====
     private String getZoneNames(Long systemId, String zoneNumbers) {
         if (zoneNumbers == null || zoneNumbers.isEmpty() || zoneNumbers.equals("00")) {
             return "No Zone";
@@ -155,7 +149,6 @@ public class AlertService {
         return String.join(", ", zoneNames);
     }
 
-    // Extract zone numbers from SMS
     private String extractZoneNumbers(String smsContent) {
         List<String> zones = new ArrayList<>();
         
@@ -188,40 +181,52 @@ public class AlertService {
         return uniqueZones.isEmpty() ? "" : String.join(",", uniqueZones);
     }
 
-    // Get all alerts (filtered by user) - WITH ZONE NAMES
+    // ===== FIXED: Get all alerts with zone names =====
     public List<AlertLog> getAllAlerts(String username) {
-        List<AlertLog> alerts;
-        
-        if (username != null && !username.trim().isEmpty()) {
-            Optional<User> userOpt = userRepository.findByUsername(username);
-            if (userOpt.isPresent() && "USER".equalsIgnoreCase(userOpt.get().getRole())) {
-                List<UserSystem> userSystems = userSystemRepository.findAllByUserId(userOpt.get().getId());
-                List<Long> systemIds = userSystems.stream().map(UserSystem::getSystemId).collect(Collectors.toList());
-                if (systemIds.isEmpty()) {
-                    return new ArrayList<>();
+        try {
+            List<AlertLog> alerts;
+            
+            if (username != null && !username.trim().isEmpty()) {
+                Optional<User> userOpt = userRepository.findByUsername(username);
+                if (userOpt.isPresent() && "USER".equalsIgnoreCase(userOpt.get().getRole())) {
+                    List<UserSystem> userSystems = userSystemRepository.findAllByUserId(userOpt.get().getId());
+                    List<Long> systemIds = userSystems.stream()
+                        .map(UserSystem::getSystemId)
+                        .collect(Collectors.toList());
+                    
+                    if (systemIds.isEmpty()) {
+                        return new ArrayList<>();
+                    }
+                    alerts = alertLogRepository.findAllByAlarmSystemIdInOrderByReceivedAtDesc(systemIds);
+                } else {
+                    alerts = alertLogRepository.findAllByOrderByReceivedAtDesc();
                 }
-                alerts = alertLogRepository.findAllByAlarmSystemIdInOrderByReceivedAtDesc(systemIds);
             } else {
                 alerts = alertLogRepository.findAllByOrderByReceivedAtDesc();
             }
-        } else {
-            alerts = alertLogRepository.findAllByOrderByReceivedAtDesc();
-        }
-        
-        // ===== NEW: Populate zone names for each alert =====
-        for (AlertLog alert : alerts) {
-            if (alert.getAlarmSystem() != null && alert.getZoneNumbers() != null && !alert.getZoneNumbers().isEmpty()) {
-                String zoneNames = getZoneNames(alert.getAlarmSystem().getId(), alert.getZoneNumbers());
-                alert.setZoneNames(zoneNames);
-            } else {
-                alert.setZoneNames("No Zone");
+            
+            // Populate zone names for each alert
+            for (AlertLog alert : alerts) {
+                if (alert.getAlarmSystem() != null && alert.getZoneNumbers() != null && !alert.getZoneNumbers().isEmpty()) {
+                    try {
+                        String zoneNames = getZoneNames(alert.getAlarmSystem().getId(), alert.getZoneNumbers());
+                        alert.setZoneNames(zoneNames);
+                    } catch (Exception e) {
+                        alert.setZoneNames("No Zone");
+                    }
+                } else {
+                    alert.setZoneNames("No Zone");
+                }
             }
+            
+            return alerts;
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ArrayList<>();
         }
-        
-        return alerts;
     }
 
-    // Resolve an alert
     @Transactional
     public AlertLog resolveAlert(Long alertId, String resolvedBy, String clientIp, String description) {
         Optional<AlertLog> alertOpt = alertLogRepository.findById(alertId);
@@ -250,7 +255,6 @@ public class AlertService {
 
         AlertLog savedAlert = alertLogRepository.save(alert);
         
-        // Populate zone names
         if (savedAlert.getAlarmSystem() != null && savedAlert.getZoneNumbers() != null) {
             savedAlert.setZoneNames(getZoneNames(savedAlert.getAlarmSystem().getId(), savedAlert.getZoneNumbers()));
         }
@@ -258,16 +262,19 @@ public class AlertService {
         return savedAlert;
     }
 
-    // Get alert with details
     public AlertLog getAlertWithDetails(Long alertId) {
-        AlertLog alert = alertLogRepository.findByIdWithSystem(alertId);
-        if (alert != null && alert.getAlarmSystem() != null && alert.getZoneNumbers() != null) {
-            alert.setZoneNames(getZoneNames(alert.getAlarmSystem().getId(), alert.getZoneNumbers()));
+        try {
+            AlertLog alert = alertLogRepository.findByIdWithSystem(alertId);
+            if (alert != null && alert.getAlarmSystem() != null && alert.getZoneNumbers() != null) {
+                alert.setZoneNames(getZoneNames(alert.getAlarmSystem().getId(), alert.getZoneNumbers()));
+            }
+            return alert;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
-        return alert;
     }
 
-    // Register heartbeat from device (by atmCode or sim number)
     public void registerHeartbeat(String atmCode, String simNumber) {
         Optional<AlarmSystem> machineOpt = Optional.empty();
         if (atmCode != null && !atmCode.trim().isEmpty()) {
@@ -291,7 +298,6 @@ public class AlertService {
             sys.setLastStatusChangedAt(java.time.LocalDateTime.now());
             alarmSystemRepository.save(sys);
         } else {
-            // if atmCode provided but no match, throw
             if (atmCode != null && !atmCode.trim().isEmpty()) {
                 throw new IllegalArgumentException("Invalid ATM Code: " + atmCode);
             }
@@ -307,34 +313,42 @@ public class AlertService {
     }
 
     public List<AlertLog> getPendingAlerts() {
-        List<AlertLog> alerts = alertLogRepository.findAllByOrderByReceivedAtDesc()
-            .stream()
-            .filter(a -> "PENDING".equals(a.getStatus()))
-            .collect(Collectors.toList());
-        
-        // Populate zone names
-        for (AlertLog alert : alerts) {
-            if (alert.getAlarmSystem() != null && alert.getZoneNumbers() != null) {
-                alert.setZoneNames(getZoneNames(alert.getAlarmSystem().getId(), alert.getZoneNumbers()));
+        try {
+            List<AlertLog> alerts = alertLogRepository.findAllByOrderByReceivedAtDesc()
+                .stream()
+                .filter(a -> "PENDING".equals(a.getStatus()))
+                .collect(Collectors.toList());
+            
+            for (AlertLog alert : alerts) {
+                if (alert.getAlarmSystem() != null && alert.getZoneNumbers() != null) {
+                    alert.setZoneNames(getZoneNames(alert.getAlarmSystem().getId(), alert.getZoneNumbers()));
+                }
             }
+            
+            return alerts;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ArrayList<>();
         }
-        
-        return alerts;
     }
 
     public List<AlertLog> getAlertsByStatus(String status) {
-        List<AlertLog> alerts = alertLogRepository.findAllByOrderByReceivedAtDesc()
-            .stream()
-            .filter(a -> status.equalsIgnoreCase(a.getStatus()))
-            .collect(Collectors.toList());
-        
-        // Populate zone names
-        for (AlertLog alert : alerts) {
-            if (alert.getAlarmSystem() != null && alert.getZoneNumbers() != null) {
-                alert.setZoneNames(getZoneNames(alert.getAlarmSystem().getId(), alert.getZoneNumbers()));
+        try {
+            List<AlertLog> alerts = alertLogRepository.findAllByOrderByReceivedAtDesc()
+                .stream()
+                .filter(a -> status.equalsIgnoreCase(a.getStatus()))
+                .collect(Collectors.toList());
+            
+            for (AlertLog alert : alerts) {
+                if (alert.getAlarmSystem() != null && alert.getZoneNumbers() != null) {
+                    alert.setZoneNames(getZoneNames(alert.getAlarmSystem().getId(), alert.getZoneNumbers()));
+                }
             }
+            
+            return alerts;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ArrayList<>();
         }
-        
-        return alerts;
     }
 }

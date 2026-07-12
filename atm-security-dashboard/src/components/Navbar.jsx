@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
-import { Shield, RefreshCw, LogOut, Settings, BookOpen } from 'lucide-react';
+import { Shield, RefreshCw, LogOut, Settings, FileText } from 'lucide-react';
 
-export default function Navbar({ user, onLogout, onOpenAdminPanel, onRefresh, onOpenManual }) {
+export default function Navbar({ user, onLogout, onOpenAdminPanel, onRefresh, onOpenReport }) {
   return (
     <nav className="border-b border-slate-800 bg-slate-950/50 backdrop-blur px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 sticky top-0 z-50">
       {/* Brand */}
@@ -31,13 +31,12 @@ export default function Navbar({ user, onLogout, onOpenAdminPanel, onRefresh, on
         </div>
 
         <div className="flex gap-2 w-full sm:w-auto">
-          {/* Manual Button */}
+          {/* Report Button - NEW */}
           <button
-            onClick={onOpenManual}
+            onClick={onOpenReport}
             className="flex items-center justify-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 border border-blue-500/30 hover:border-blue-500/50 px-4 py-2 rounded-lg text-xs font-mono transition-all w-full sm:w-auto"
-            title="User Manual"
           >
-            <BookOpen className="w-4 h-4" /> Guide
+            <FileText className="w-4 h-4" /> Reports
           </button>
 
           {/* Admin Panel Button */}
@@ -79,5 +78,5 @@ Navbar.propTypes = {
   onLogout: PropTypes.func.isRequired,
   onOpenAdminPanel: PropTypes.func.isRequired,
   onRefresh: PropTypes.func.isRequired,
-  onOpenManual: PropTypes.func.isRequired,
+  onOpenReport: PropTypes.func.isRequired,  // NEW
 };

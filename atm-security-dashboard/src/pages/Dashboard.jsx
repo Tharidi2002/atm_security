@@ -5,12 +5,13 @@ import StatsCards from '../components/StatsCards';
 import AlertTable from '../components/AlertTable';
 import NotificationToast from '../components/NotificationToast';
 import AdminPanel from '../components/AdminPanel';
-import UserManual from '../components/UserManual';
+import ReportGenerator from '../components/ReportGenerator';
 import { useAlerts } from '../hooks/useAlerts';
 
 export default function Dashboard({ user, onLogout }) {
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
-  const [isManualOpen, setIsManualOpen] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);  // NEW
+  
   const { 
     alerts, 
     loading, 
@@ -31,8 +32,8 @@ export default function Dashboard({ user, onLogout }) {
         user={user} 
         onLogout={onLogout} 
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
-        onOpenManual={() => setIsManualOpen(true)}
-        onRefresh={refreshAlerts} 
+        onRefresh={refreshAlerts}
+        onOpenReport={() => setIsReportOpen(true)}  // NEW
       />
       
       <main className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6 animate-fade-in">
@@ -57,6 +58,7 @@ export default function Dashboard({ user, onLogout }) {
 
         <StatsCards stats={stats} />
         
+        {/* Alerts count badge */}
         <div className="flex justify-between items-center">
           <div className="text-sm text-slate-400">
             Showing <span className="text-white font-bold">{alerts.length}</span> alerts
@@ -86,10 +88,11 @@ export default function Dashboard({ user, onLogout }) {
         onClose={() => setIsAdminPanelOpen(false)} 
       />
 
-      {/* User Manual */}
-      <UserManual 
-        isOpen={isManualOpen} 
-        onClose={() => setIsManualOpen(false)} 
+      {/* Report Generator Modal */}
+      <ReportGenerator
+        isOpen={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+        user={user}
       />
 
       {/* Notification Toast - New alert */}

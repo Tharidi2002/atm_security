@@ -19,9 +19,11 @@ import com.security.alarm.entity.AlarmZone;
 import com.security.alarm.repository.AlarmZoneRepository;
 import com.security.alarm.repository.AlarmZoneRepository;
 
+
 @RestController
 @RequestMapping("/api/admin")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"}, allowCredentials = "false")
+
 public class AdminController {
 
     private final UserRepository userRepository;
