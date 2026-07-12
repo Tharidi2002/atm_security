@@ -94,9 +94,16 @@ export default function NotificationToast({ alert, onClose }) {
             </span>
           </div>
 
-          <div className="flex items-center justify-center gap-2 text-slate-300 text-lg">
-            <MapPin className="w-5 h-5 text-slate-500 flex-shrink-0" />
-            <span>{alert.alarmSystem?.location || 'Unknown Location'}</span>
+          <div className="flex flex-col items-center gap-1 text-slate-300 text-lg">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-slate-500 flex-shrink-0" />
+              <span>{alert.alarmSystem?.location || 'Unknown Location'}</span>
+            </div>
+            {alert.alarmSystem?.description && (
+              <div className="text-slate-500 text-sm font-mono tracking-wide max-w-xl text-center">
+                {alert.alarmSystem.description}
+              </div>
+            )}
           </div>
 
           {/* ===== ZONES - NOW SHOWING NAMES ===== */}
