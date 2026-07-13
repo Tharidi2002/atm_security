@@ -4,7 +4,8 @@ import {
   X, UserPlus, ShieldAlert, Check, Plus, AlertCircle, Users, Cpu, 
   ToggleLeft, ToggleRight, Edit2, Trash2, Save, Eye, EyeOff,
   RefreshCw, Zap, Copy, CheckCircle as CheckCircleIcon,
-  Key, Lock, Layers, Trash, Search
+  Key, Lock, Layers, Trash, Search, Smartphone, Settings,
+  BellOff, ShieldOff
 } from 'lucide-react';
 import { 
   fetchUsers, 
@@ -16,7 +17,10 @@ import {
   toggleSystemStatus,
   deleteSystem,
   resetUserPassword,
-  deleteUser
+  deleteUser,
+  sendSystemCommand,
+  disarmSystem,
+  stopSiren
 } from '../services/api';
 import ZoneManagement from './ZoneManagement';
 
@@ -42,6 +46,9 @@ export default function AdminPanel({ isOpen, onClose }) {
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
   const [simNumber, setSimNumber] = useState('');
+  const [panelSimNumber, setPanelSimNumber] = useState('');
+  const [disarmCommand, setDisarmCommand] = useState('8888#2A');
+  const [armCommand, setArmCommand] = useState('8888#1A');
   const [editingSystem, setEditingSystem] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedCode, setGeneratedCode] = useState('');
@@ -59,7 +66,7 @@ export default function AdminPanel({ isOpen, onClose }) {
   const [selectedSystemId, setSelectedSystemId] = useState(null);
   const [selectedSystemCode, setSelectedSystemCode] = useState('');
 
-  // ===== NEW: User Search state =====
+  // User Search state
   const [userSearchQuery, setUserSearchQuery] = useState('');
 
   const [timeNow, setTimeNow] = useState(new Date());
@@ -161,7 +168,6 @@ export default function AdminPanel({ isOpen, onClose }) {
     }
   };
 
-  // ===== NEW: Delete User =====
   const handleDeleteUser = async (userId, username) => {
     if (!window.confirm(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) return;
     
@@ -268,6 +274,9 @@ export default function AdminPanel({ isOpen, onClose }) {
         location: location.trim(),
         description: description.trim(),
         simNumber: simNumber.trim(),
+        panelSimNumber: panelSimNumber.trim() || simNumber.trim(),
+        disarmCommand: disarmCommand.trim() || '8888#2A',
+        armCommand: armCommand.trim() || '8888#1A',
         status: 'ACTIVE'
       };
 
@@ -276,6 +285,9 @@ export default function AdminPanel({ isOpen, onClose }) {
       setLocation('');
       setDescription('');
       setSimNumber('');
+      setPanelSimNumber('');
+      setDisarmCommand('8888#2A');
+      setArmCommand('8888#1A');
       await loadData();
       await fetchLatestSystemCode();
     } catch (errorMsg) {
@@ -290,6 +302,9 @@ export default function AdminPanel({ isOpen, onClose }) {
     setLocation(system.location);
     setDescription(system.description || '');
     setSimNumber(system.simNumber);
+    setPanelSimNumber(system.panelSimNumber || system.simNumber);
+    setDisarmCommand(system.disarmCommand || '8888#2A');
+    setArmCommand(system.armCommand || '8888#1A');
   };
 
   const handleUpdateSystem = async (e) => {
@@ -306,6 +321,9 @@ export default function AdminPanel({ isOpen, onClose }) {
         location: location.trim(),
         description: description.trim(),
         simNumber: simNumber.trim(),
+        panelSimNumber: panelSimNumber.trim() || simNumber.trim(),
+        disarmCommand: disarmCommand.trim() || '8888#2A',
+        armCommand: armCommand.trim() || '8888#1A',
         status: editingSystem.status
       });
       setSuccess(`✅ System ${editingSystem.systemCode} updated successfully`);
@@ -313,6 +331,9 @@ export default function AdminPanel({ isOpen, onClose }) {
       setLocation('');
       setDescription('');
       setSimNumber('');
+      setPanelSimNumber('');
+      setDisarmCommand('8888#2A');
+      setArmCommand('8888#1A');
       loadData();
       await fetchLatestSystemCode();
     } catch (errorMsg) {
@@ -325,6 +346,9 @@ export default function AdminPanel({ isOpen, onClose }) {
     setLocation('');
     setDescription('');
     setSimNumber('');
+    setPanelSimNumber('');
+    setDisarmCommand('8888#2A');
+    setArmCommand('8888#1A');
     fetchLatestSystemCode();
   };
 
@@ -338,6 +362,30 @@ export default function AdminPanel({ isOpen, onClose }) {
       loadData();
     } catch (errorMsg) {
       setError(errorMsg.message || 'Failed to change status');
+    }
+  };
+
+  const handleSendCommand = async (systemCode, command) => {
+    setError('');
+    setSuccess('');
+    try {
+      await sendSystemCommand(systemCode, command);
+      setSuccess(`✅ Command ${command} sent to system ${systemCode} successfully`);
+      loadData();
+    } catch (errorMsg) {
+      setError(errorMsg.message || `Failed to send command ${command}`);
+    }
+  };
+
+  const handleStopSirenDirect = async (systemCode) => {
+    setError('');
+    setSuccess('');
+    try {
+      await stopSiren(systemCode, 'ADMIN');
+      setSuccess(`✅ Siren stopped for system ${systemCode}`);
+      loadData();
+    } catch (errorMsg) {
+      setError(errorMsg.message || 'Failed to stop siren');
     }
   };
 
@@ -382,7 +430,7 @@ export default function AdminPanel({ isOpen, onClose }) {
     return parts.length > 0 ? parts.join(', ') : 'just now';
   };
 
-  // ===== NEW: Filter users by search query =====
+  // Filter users by search query
   const filteredUsers = users.filter(user => 
     user.username.toLowerCase().includes(userSearchQuery.toLowerCase())
   );
@@ -451,7 +499,7 @@ export default function AdminPanel({ isOpen, onClose }) {
             </div>
           )}
 
-          {/* TAB 1: USERS MANAGEMENT */}
+          {/* ========== TAB 1: USERS MANAGEMENT ========== */}
           {activeTab === 'USERS' && (
             <>
               <div className="bg-slate-950/40 border border-slate-800/80 rounded-2xl p-5 space-y-4">
@@ -518,7 +566,6 @@ export default function AdminPanel({ isOpen, onClose }) {
                 <div className="flex justify-between items-center">
                   <h3 className="text-sm font-bold tracking-wide uppercase text-white font-mono">Security User Directory</h3>
                   <div className="flex items-center gap-2">
-                    {/* ===== NEW: Search Input ===== */}
                     <div className="relative">
                       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
                       <input
@@ -585,7 +632,6 @@ export default function AdminPanel({ isOpen, onClose }) {
                         </div>
 
                         <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
-                          {/* ===== DELETE BUTTON - Only for non-admin users ===== */}
                           {u.role !== 'ADMIN' && (
                             <button
                               onClick={() => handleDeleteUser(u.id, u.username)}
@@ -626,7 +672,7 @@ export default function AdminPanel({ isOpen, onClose }) {
             </>
           )}
 
-          {/* TAB 2: SYSTEMS/DEVICES MANAGEMENT */}
+          {/* ========== TAB 2: SYSTEMS/DEVICES MANAGEMENT ========== */}
           {activeTab === 'SYSTEMS' && (
             <>
               <div className="bg-slate-950/40 border border-slate-800/80 rounded-2xl p-5 space-y-4">
@@ -635,7 +681,8 @@ export default function AdminPanel({ isOpen, onClose }) {
                   {editingSystem ? 'Modify Alarm System' : 'Register New Alarm System'}
                 </h3>
                 
-                <form onSubmit={editingSystem ? handleUpdateSystem : handleCreateSystem} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <form onSubmit={editingSystem ? handleUpdateSystem : handleCreateSystem} className="grid grid-cols-1 gap-4">
+                  {/* System Code */}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 font-mono flex items-center gap-2">
                       System Code
@@ -679,6 +726,7 @@ export default function AdminPanel({ isOpen, onClose }) {
                     </p>
                   </div>
 
+                  {/* SIM Card Number */}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 font-mono">SIM Card Number</label>
                     <input 
@@ -691,7 +739,24 @@ export default function AdminPanel({ isOpen, onClose }) {
                     />
                   </div>
 
-                  <div className="space-y-1.5 sm:col-span-2">
+                  {/* Panel SIM Number - Z8B */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 font-mono flex items-center gap-2">
+                      <Smartphone className="w-3.5 h-3.5" />
+                      Panel SIM Number (Z8B)
+                    </label>
+                    <input 
+                      type="text"
+                      value={panelSimNumber}
+                      onChange={(e) => setPanelSimNumber(e.target.value)}
+                      placeholder="Panel SIM (e.g., 0714868100)"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-white placeholder-slate-600 focus:outline-none focus:border-red-500/50"
+                    />
+                    <p className="text-[8px] text-slate-500">If empty, system SIM will be used</p>
+                  </div>
+
+                  {/* Location */}
+                  <div className="space-y-1.5">
                     <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 font-mono">Location</label>
                     <input 
                       type="text"
@@ -703,7 +768,8 @@ export default function AdminPanel({ isOpen, onClose }) {
                     />
                   </div>
 
-                  <div className="space-y-1.5 sm:col-span-2">
+                  {/* Description */}
+                  <div className="space-y-1.5">
                     <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 font-mono">Description</label>
                     <input
                       type="text"
@@ -714,7 +780,39 @@ export default function AdminPanel({ isOpen, onClose }) {
                     />
                   </div>
 
-                  <div className="sm:col-span-2 flex gap-2">
+                  {/* Z8B Panel Commands */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 font-mono flex items-center gap-2">
+                      <Settings className="w-3.5 h-3.5" />
+                      Panel Commands
+                    </label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[8px] text-slate-500 font-mono">Disarm Command</label>
+                        <input 
+                          type="text"
+                          value={disarmCommand}
+                          onChange={(e) => setDisarmCommand(e.target.value)}
+                          placeholder="8888#2A"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-white placeholder-slate-600 focus:outline-none focus:border-red-500/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[8px] text-slate-500 font-mono">Arm Command</label>
+                        <input 
+                          type="text"
+                          value={armCommand}
+                          onChange={(e) => setArmCommand(e.target.value)}
+                          placeholder="8888#1A"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-white placeholder-slate-600 focus:outline-none focus:border-red-500/50"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[8px] text-slate-500">Default: 8888#2A (Disarm) | 8888#1A (Arm)</p>
+                  </div>
+
+                  {/* Submit Buttons */}
+                  <div className="flex gap-2">
                     <button
                       type="submit"
                       disabled={isGenerating}
@@ -745,6 +843,7 @@ export default function AdminPanel({ isOpen, onClose }) {
                 </form>
               </div>
 
+              {/* Systems Directory */}
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <h3 className="text-sm font-bold tracking-wide uppercase text-white font-mono">Alarm Systems Directory</h3>
@@ -779,9 +878,21 @@ export default function AdminPanel({ isOpen, onClose }) {
                               }`}>
                                 {sys.status}
                               </span>
+                              {sys.sirenStatus && (
+                                <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded-full border ${
+                                  sys.sirenStatus === 'ON' 
+                                    ? 'bg-red-500/20 text-red-400 border-red-500/30 animate-pulse' 
+                                    : 'bg-slate-600/20 text-slate-400 border-slate-600/30'
+                                }`}>
+                                  {sys.sirenStatus === 'ON' ? '🔔 SIREN ON' : '🔕 SIREN OFF'}
+                                </span>
+                              )}
                             </div>
                             <div className="text-xs text-slate-400 mt-1">
                               Location: <span className="text-slate-300 font-medium">{sys.location}</span> • SIM: <span className="font-mono text-slate-300">{sys.simNumber}</span>
+                              {sys.panelSimNumber && (
+                                <span className="ml-2 text-slate-500">• Panel: <span className="font-mono">{sys.panelSimNumber}</span></span>
+                              )}
                             </div>
                             {sys.description && (
                               <div className="text-[11px] text-slate-500 mt-1 truncate">{sys.description}</div>
@@ -789,10 +900,39 @@ export default function AdminPanel({ isOpen, onClose }) {
                             <div className="text-[10px] text-slate-500 mt-0.5 font-mono">
                               {isActive ? 'Active for: ' : 'Inactive for: '} 
                               <span className="text-red-400/90 font-bold">{formatDuration(sys.lastStatusChangedAt)}</span>
+                              {sys.disarmCommand && (
+                                <span className="ml-3 text-cyan-400">Disarm: <span className="font-mono">{sys.disarmCommand}</span></span>
+                              )}
                             </div>
                           </div>
 
                           <div className="flex items-center gap-2 flex-shrink-0">
+                            {sys.sirenStatus === 'ON' && (
+                              <button
+                                onClick={() => handleStopSirenDirect(sys.systemCode)}
+                                title="Stop Siren Only"
+                                className="p-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg transition-all"
+                              >
+                                <BellOff className="w-4 h-4" />
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => handleSendCommand(sys.systemCode, 'ARM')}
+                              title="Arm System"
+                              className="p-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded-lg transition-all"
+                            >
+                              <Zap className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              onClick={() => handleSendCommand(sys.systemCode, 'DISARM')}
+                              title="Disarm System & Resolve Alerts"
+                              className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg transition-all"
+                            >
+                              <ShieldOff className="w-4 h-4" />
+                            </button>
+
                             <button
                               onClick={() => handleToggleStatus(sys)}
                               title={isActive ? 'Deactivate System' : 'Activate System'}
@@ -824,7 +964,8 @@ export default function AdminPanel({ isOpen, onClose }) {
                             >
                               <Layers className="w-4 h-4" />
                             </button>
-                           <button
+
+                            <button
                               onClick={() => handleDeleteSystem(sys.id, sys.systemCode)}
                               title="Delete System"
                               className="p-1.5 bg-red-500/10 hover:bg-red-650 text-red-400 hover:text-white border border-red-500/20 hover:border-red-500 rounded-lg transition-all"
@@ -843,7 +984,7 @@ export default function AdminPanel({ isOpen, onClose }) {
         </div>
       </div>
 
-      {/* Assignment Modal */}
+      {/* ========== ASSIGNMENT MODAL ========== */}
       {selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setSelectedUser(null)} />
@@ -905,7 +1046,7 @@ export default function AdminPanel({ isOpen, onClose }) {
         </div>
       )}
 
-      {/* Reset Password Modal */}
+      {/* ========== RESET PASSWORD MODAL ========== */}
       {showResetPassword && resetUser && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full shadow-2xl shadow-yellow-500/10 animate-in fade-in duration-200">
@@ -1003,7 +1144,7 @@ export default function AdminPanel({ isOpen, onClose }) {
         </div>
       )}
 
-      {/* Zone Management Modal */}
+      {/* ========== ZONE MANAGEMENT MODAL ========== */}
       <ZoneManagement
         systemId={selectedSystemId}
         systemCode={selectedSystemCode}

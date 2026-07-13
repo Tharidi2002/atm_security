@@ -206,6 +206,44 @@ export const fetchZoneTypes = async () => {
   return await response.json();
 };
 
+// ===== SYSTEM CONTROL COMMANDS =====
+export const disarmSystem = async (systemCode, triggeredBy) => {
+  const response = await fetch(`${API_BASE_URL}/alerts/disarm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ systemCode, triggeredBy }),
+  });
+  if (!response.ok) {
+    const errorMsg = await response.text();
+    throw new Error(errorMsg || 'Failed to disarm system');
+  }
+  return await response.json();
+};
+
+export const stopSiren = async (systemCode, triggeredBy) => {
+  const response = await fetch(`${API_BASE_URL}/alerts/stop-siren`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ systemCode, triggeredBy }),
+  });
+  if (!response.ok) {
+    const errorMsg = await response.text();
+    throw new Error(errorMsg || 'Failed to stop siren');
+  }
+  return await response.json();
+};
+
+export const sendSystemCommand = async (atmCode, command) => {
+  const response = await fetch(`${API_BASE_URL}/alerts/set-command?atmCode=${encodeURIComponent(atmCode)}&command=${encodeURIComponent(command)}`, {
+    method: 'POST',
+  });
+  if (!response.ok) {
+    const errorMsg = await response.text();
+    throw new Error(errorMsg || `Failed to send command ${command}`);
+  }
+  return await response.json();
+};
+
 // ===== DELETE USER =====
 export const deleteUser = async (userId) => {
   const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {

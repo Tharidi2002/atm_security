@@ -1,11 +1,56 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
-import { X, MapPin, Clock, Radio, CheckCircle, User, Clock as ClockIcon, Timer, AlertTriangle, Bell, Phone } from 'lucide-react';
+import { X, MapPin, Clock, Radio, CheckCircle, User, Clock as ClockIcon, Timer, AlertTriangle, Bell, Phone, BellOff, ShieldOff } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import AlertResolveModal from './AlertResolveModal';
+import { disarmSystem, stopSiren } from '../services/api';
+
 
 export default function AlertDetailsPanel({ alert, isOpen, onClose, onResolved, username }) {
   const [showResolveModal, setShowResolveModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState(null);
+  const [actionSuccess, setActionSuccess] = useState(null);
+
+  const handleDisarm = async () => {
+    if (!alert.alarmSystem?.systemCode) return;
+    setActionLoading(true);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      const res = await disarmSystem(alert.alarmSystem.systemCode, username || 'DASHBOARD');
+      setActionSuccess(`System disarmed. Resolved ${res.resolvedAlerts} alerts.`);
+      setTimeout(() => {
+        setActionSuccess(null);
+        if (onResolved) onResolved();
+        onClose();
+      }, 2000);
+    } catch (err) {
+      setActionError(err.message || 'Failed to disarm system');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleStopSiren = async () => {
+    if (!alert.alarmSystem?.systemCode) return;
+    setActionLoading(true);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      const res = await stopSiren(alert.alarmSystem.systemCode, username || 'DASHBOARD');
+      setActionSuccess(`Siren stopped. ${res.pendingAlerts} alerts still pending.`);
+      setTimeout(() => {
+        setActionSuccess(null);
+        if (onResolved) onResolved();
+        onClose();
+      }, 2000);
+    } catch (err) {
+      setActionError(err.message || 'Failed to stop siren');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   if (!isOpen || !alert) return null;
 
@@ -212,6 +257,51 @@ export default function AlertDetailsPanel({ alert, isOpen, onClose, onResolved, 
                     <span>🌐 IP: {alert.resolvedFromIp}</span>
                   </div>
                 )}
+              </div>
+            )}
+
+            {actionError && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl px-4 py-2.5 text-xs font-mono">
+                ⚠️ {actionError}
+              </div>
+            )}
+            {actionSuccess && (
+              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl px-4 py-2.5 text-xs font-mono">
+                ✅ {actionSuccess}
+              </div>
+            )}
+
+            {/* Siren and Arming Controls */}
+            {isPending && alert.alarmSystem && (
+              <div className="bg-slate-800/20 border border-slate-700/50 rounded-xl p-3.5 space-y-3">
+                <div className="text-xs text-slate-400 font-mono flex items-center justify-between">
+                  <span>SYSTEM CONTROLS ({alert.alarmSystem.systemCode})</span>
+                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                    alert.alarmSystem.sirenStatus === 'ON' ? 'bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse' : 'bg-slate-700 text-slate-400'
+                  }`}>
+                    Siren: {alert.alarmSystem.sirenStatus || 'OFF'}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {alert.alarmSystem.sirenStatus === 'ON' && (
+                    <button
+                      onClick={handleStopSiren}
+                      disabled={actionLoading}
+                      className="flex-1 min-w-[120px] py-2 bg-amber-600/20 hover:bg-amber-600/30 active:bg-amber-600/40 text-amber-300 hover:text-white border border-amber-500/30 rounded-xl text-xs font-bold font-mono transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      <BellOff className="w-3.5 h-3.5" />
+                      Stop Siren Only
+                    </button>
+                  )}
+                  <button
+                    onClick={handleDisarm}
+                    disabled={actionLoading}
+                    className="flex-1 min-w-[120px] py-2 bg-red-600/20 hover:bg-red-600/35 active:bg-red-600/45 text-red-300 hover:text-white border border-red-500/30 rounded-xl text-xs font-bold font-mono transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    <ShieldOff className="w-3.5 h-3.5" />
+                    Disarm System
+                  </button>
+                </div>
               </div>
             )}
 

@@ -17,13 +17,10 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import com.security.alarm.entity.AlarmZone;
 import com.security.alarm.repository.AlarmZoneRepository;
-import com.security.alarm.repository.AlarmZoneRepository;
-
 
 @RestController
 @RequestMapping("/api/admin")
 @CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"}, allowCredentials = "false")
-
 public class AdminController {
 
     private final UserRepository userRepository;
@@ -31,7 +28,6 @@ public class AdminController {
     private final AlarmSystemRepository alarmSystemRepository;
     private final PasswordEncoder passwordEncoder;
     private final AlarmZoneRepository alarmZoneRepository;
-
 
     public AdminController(UserRepository userRepository,
                         UserSystemRepository userSystemRepository,
@@ -42,12 +38,10 @@ public class AdminController {
         this.userSystemRepository = userSystemRepository;
         this.alarmSystemRepository = alarmSystemRepository;
         this.passwordEncoder = passwordEncoder;
-        this.alarmZoneRepository = alarmZoneRepository;  
+        this.alarmZoneRepository = alarmZoneRepository;
     }
 
-
     // ========== USER MANAGEMENT ==========
-
     @GetMapping("/users")
     public ResponseEntity<List<Map<String, Object>>> getUsers() {
         List<User> users = userRepository.findAll();
@@ -114,7 +108,6 @@ public class AdminController {
         return ResponseEntity.ok("Systems assigned successfully");
     }
 
-    // ========== RESET USER PASSWORD ==========
     @PutMapping("/users/{userId}/reset-password")
     public ResponseEntity<?> resetUserPassword(
             @PathVariable Long userId,
@@ -148,14 +141,11 @@ public class AdminController {
     }
 
     // ========== ALARM SYSTEM MANAGEMENT ==========
-
     private String generateNextSystemCode() {
         Optional<String> latestCodeOpt = alarmSystemRepository.findLatestSystemCode();
-        
         if (latestCodeOpt.isEmpty()) {
             return "ALARM-Z8B-01";
         }
-        
         String latestCode = latestCodeOpt.get();
         try {
             String[] parts = latestCode.split("-");
@@ -164,9 +154,7 @@ public class AdminController {
                 int nextNumber = lastNumber + 1;
                 return String.format("ALARM-Z8B-%02d", nextNumber);
             }
-        } catch (NumberFormatException e) {
-            // If parsing fails, start from 01
-        }
+        } catch (NumberFormatException e) {}
         return "ALARM-Z8B-01";
     }
 
@@ -189,7 +177,6 @@ public class AdminController {
         }
 
         String newSystemCode = generateNextSystemCode();
-        
         int counter = 0;
         while (alarmSystemRepository.findBySystemCode(newSystemCode).isPresent() && counter < 100) {
             try {
@@ -213,18 +200,20 @@ public class AdminController {
         newSystem.setSimNumber(system.getSimNumber().trim());
         newSystem.setStatus(system.getStatus() != null ? system.getStatus() : "ACTIVE");
         newSystem.setLastStatusChangedAt(LocalDateTime.now());
+        
+        // ===== NEW: Z8B Panel Settings =====
+        newSystem.setPanelSimNumber(system.getSimNumber().trim());
+        newSystem.setPanelPassword("8888");
+        newSystem.setDisarmCommand("8888#2A");
+        newSystem.setArmCommand("8888#1A");
+        newSystem.setSirenStatus("OFF");
 
         AlarmSystem saved = alarmSystemRepository.save(newSystem);
-
-        // ===== AUTO-CREATE DEFAULT ZONES (24 zones) =====
         createDefaultZones(saved);
-
         return ResponseEntity.ok(saved);
     }
 
-    // ===== NEW: Create default zones =====
     private void createDefaultZones(AlarmSystem system) {
-        // Wireless Zones (01-16)
         String[] wirelessZoneNames = {
             "Main Entrance", "Cash Counter", "Lobby", "Server Room",
             "Back Office", "Vault Room", "Emergency Exit", "Parking Area",
@@ -232,13 +221,11 @@ public class AdminController {
             "Main Hall", "Conference Room", "Security Room", "Generator Room"
         };
 
-        // Wired Zones (17-24)
         String[] wiredZoneNames = {
             "Wired Zone 1", "Wired Zone 2", "Wired Zone 3", "Wired Zone 4",
             "Wired Zone 5", "Wired Zone 6", "Wired Zone 7", "Wired Zone 8"
         };
 
-        // Create Wireless Zones (1-16)
         for (int i = 0; i < wirelessZoneNames.length; i++) {
             AlarmZone zone = new AlarmZone();
             zone.setAlarmSystem(system);
@@ -251,7 +238,6 @@ public class AdminController {
             alarmZoneRepository.save(zone);
         }
 
-        // Create Wired Zones (17-24)
         for (int i = 0; i < wiredZoneNames.length; i++) {
             AlarmZone zone = new AlarmZone();
             zone.setAlarmSystem(system);
@@ -300,6 +286,20 @@ public class AdminController {
             existing.setSimNumber(newSim);
         }
 
+        // ===== NEW: Update Z8B Panel Settings =====
+        if (updated.getPanelSimNumber() != null && !updated.getPanelSimNumber().trim().isEmpty()) {
+            existing.setPanelSimNumber(updated.getPanelSimNumber().trim());
+        }
+        if (updated.getPanelPassword() != null && !updated.getPanelPassword().trim().isEmpty()) {
+            existing.setPanelPassword(updated.getPanelPassword().trim());
+        }
+        if (updated.getDisarmCommand() != null && !updated.getDisarmCommand().trim().isEmpty()) {
+            existing.setDisarmCommand(updated.getDisarmCommand().trim());
+        }
+        if (updated.getArmCommand() != null && !updated.getArmCommand().trim().isEmpty()) {
+            existing.setArmCommand(updated.getArmCommand().trim());
+        }
+
         if (updated.getStatus() != null && !updated.getStatus().equalsIgnoreCase(existing.getStatus())) {
             existing.setStatus(updated.getStatus());
             existing.setLastStatusChangedAt(LocalDateTime.now());
@@ -341,9 +341,7 @@ public class AdminController {
         if (existingOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        
         try {
-            // ===== FIX: Delete zones first, then system =====
             alarmZoneRepository.deleteBySystemId(id);
             alarmSystemRepository.deleteById(id);
             return ResponseEntity.ok("System deleted successfully");
@@ -352,25 +350,18 @@ public class AdminController {
         }
     }
 
-    // ===== DELETE USER =====
     @DeleteMapping("/users/{userId}")
     public ResponseEntity<?> deleteUser(@PathVariable Long userId) {
         Optional<User> userOpt = userRepository.findById(userId);
         if (userOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        
         User user = userOpt.get();
-        
-        // Don't allow deleting admin users
         if ("ADMIN".equalsIgnoreCase(user.getRole())) {
             return ResponseEntity.badRequest().body("Cannot delete admin users");
         }
-        
         try {
-            // Delete user-system mappings first
             userSystemRepository.deleteByUserId(userId);
-            // Delete user
             userRepository.deleteById(userId);
             return ResponseEntity.ok("User deleted successfully");
         } catch (Exception e) {

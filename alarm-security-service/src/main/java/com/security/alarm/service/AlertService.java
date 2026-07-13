@@ -42,7 +42,9 @@ public class AlertService {
         this.userSystemRepository = userSystemRepository;
     }
 
-    // Process incoming SMS
+    // ============================================================
+    // PROCESS INCOMING SMS
+    // ============================================================
     public AlertLog processIncomingSMS(String fromSimNumber, String smsContent, String atmCode) {
         AlertLog alertLog = new AlertLog();
         alertLog.setReceivedAt(LocalDateTime.now());
@@ -52,48 +54,96 @@ public class AlertService {
             cleanMessage = cleanMessage.replace(fromSimNumber, "").trim();
         }
 
-        // Check for CALL or ARMED status
-        if (cleanMessage != null && cleanMessage.toLowerCase().contains("call incoming")) {
-            alertLog.setStatus("CALL");
-        } else if (cleanMessage != null && cleanMessage.toUpperCase().contains("ARMED")) {
+        Optional<AlarmSystem> machineOpt = findSystem(atmCode, fromSimNumber);
+
+        // ============================================================
+        // 1. SIREN_STOP - ONLY STOP SIREN, DO NOT RESOLVE ALERT
+        // ============================================================
+        if (cleanMessage != null && cleanMessage.toUpperCase().contains("SIREN_STOP")) {
+            if (machineOpt.isPresent()) {
+                // Update siren status to OFF
+                machineOpt.get().setSirenStatus("OFF");
+                alarmSystemRepository.save(machineOpt.get());
+                
+                alertLog.setStatus("PENDING");
+                alertLog.setAlertType("SIREN_STOP");
+                alertLog.setRawMessage(smsContent);
+                alertLog.setZoneNumber(0);
+                alertLog.setZoneNumbers("00");
+                alertLog.setZoneNames("No Zone");
+                alertLog.setAlarmSystem(machineOpt.get());
+                alertLog.setResolutionDescription("Siren stopped by user. Alert still pending.");
+                return alertLogRepository.save(alertLog);
+            }
+        }
+
+        // ============================================================
+        // 2. DISARM - RESOLVE ALL ALERTS + SIREN OFF
+        // ============================================================
+        if (cleanMessage != null && (cleanMessage.toUpperCase().contains("DISARM") || 
+            cleanMessage.toUpperCase().contains("8888#2A"))) {
+            if (machineOpt.isPresent()) {
+                // SIREN OFF
+                machineOpt.get().setSirenStatus("OFF");
+                alarmSystemRepository.save(machineOpt.get());
+                
+                // RESOLVE ALL PENDING ALERTS
+                resolveAllPendingAlerts(machineOpt.get().getId(), "SYSTEM-DISARM", "System disarmed by user");
+                
+                alertLog.setStatus("RESOLVED");
+                alertLog.setAlertType("DISARM");
+                alertLog.setRawMessage(smsContent);
+                alertLog.setZoneNumber(0);
+                alertLog.setZoneNumbers("00");
+                alertLog.setZoneNames("No Zone");
+                alertLog.setAlarmSystem(machineOpt.get());
+                return alertLogRepository.save(alertLog);
+            }
+        }
+
+        // ============================================================
+        // 3. ARM
+        // ============================================================
+        if (cleanMessage != null && (cleanMessage.trim().equalsIgnoreCase("ARM") || 
+            cleanMessage.toUpperCase().contains("8888#1A"))) {
             alertLog.setStatus("ARMED");
-        } else {
+            if (machineOpt.isPresent()) {
+                machineOpt.get().setSirenStatus("OFF");
+                alarmSystemRepository.save(machineOpt.get());
+                alertLog.setAlarmSystem(machineOpt.get());
+            }
+        }
+        // ============================================================
+        // 4. CALL
+        // ============================================================
+        else if (cleanMessage != null && cleanMessage.toLowerCase().contains("call incoming")) {
+            alertLog.setStatus("CALL");
+            if (machineOpt.isPresent()) {
+                alertLog.setAlarmSystem(machineOpt.get());
+            }
+        }
+        // ============================================================
+        // 5. ZONE ALARM - SIREN ON
+        // ============================================================
+        else if (cleanMessage != null && 
+                 (cleanMessage.toLowerCase().contains("zone") || 
+                  cleanMessage.toLowerCase().contains("alarm"))) {
             alertLog.setStatus("PENDING");
-        }
-
-        // Find system by ATM code if provided, otherwise by SIM number
-        Optional<AlarmSystem> machineOpt = Optional.empty();
-        if (atmCode != null && !atmCode.trim().isEmpty()) {
-            machineOpt = alarmSystemRepository.findBySystemCode(atmCode.trim());
-        }
-        if (machineOpt.isEmpty() && fromSimNumber != null && !fromSimNumber.isEmpty()) {
-            String rawSim = fromSimNumber.trim();
-            machineOpt = alarmSystemRepository.findBySimNumber(rawSim);
-
-            if (machineOpt.isEmpty()) {
-                String digits = rawSim.replaceAll("\\D+", "");
-                if (!digits.isEmpty()) {
-                    machineOpt = alarmSystemRepository.findBySimNumber(digits);
-                }
-            }
-
-            if (machineOpt.isEmpty()) {
-                String digits = rawSim.replaceAll("\\D+", "");
-                if (digits.startsWith("94") && digits.length() > 2) {
-                    String local = "0" + digits.substring(2);
-                    machineOpt = alarmSystemRepository.findBySimNumber(local);
-                }
+            if (machineOpt.isPresent()) {
+                // SIREN ON
+                machineOpt.get().setSirenStatus("ON");
+                alarmSystemRepository.save(machineOpt.get());
+                alertLog.setAlarmSystem(machineOpt.get());
             }
         }
-
-        if (atmCode != null && !atmCode.trim().isEmpty() && machineOpt.isEmpty()) {
-            throw new IllegalArgumentException("Invalid ATM Code: " + atmCode);
-        }
-
-        if (machineOpt.isPresent()) {
-            alertLog.setAlarmSystem(machineOpt.get());
-        } else {
-            alertLog.setAlarmSystem(null);
+        // ============================================================
+        // 6. DEFAULT
+        // ============================================================
+        else {
+            alertLog.setStatus("PENDING");
+            if (machineOpt.isPresent()) {
+                alertLog.setAlarmSystem(machineOpt.get());
+            }
         }
 
         // Extract zone numbers
@@ -124,6 +174,126 @@ public class AlertService {
         return alertLogRepository.save(alertLog);
     }
 
+    // ============================================================
+    // RESOLVE ALL PENDING ALERTS + SIREN OFF
+    // ============================================================
+    @Transactional
+    public List<AlertLog> resolveAllPendingAlerts(Long systemId, String resolvedBy, String description) {
+        List<AlertLog> pendingAlerts = alertLogRepository
+            .findByAlarmSystemIdAndStatusOrderByReceivedAtDesc(systemId, "PENDING");
+        
+        if (pendingAlerts.isEmpty()) {
+            return pendingAlerts;
+        }
+        
+        LocalDateTime now = LocalDateTime.now();
+        
+        // Update system siren status to OFF
+        Optional<AlarmSystem> systemOpt = alarmSystemRepository.findById(systemId);
+        if (systemOpt.isPresent()) {
+            systemOpt.get().setSirenStatus("OFF");
+            alarmSystemRepository.save(systemOpt.get());
+        }
+        
+        for (AlertLog alert : pendingAlerts) {
+            Duration duration = Duration.between(alert.getReceivedAt(), now);
+            alert.setStatus("RESOLVED");
+            alert.setResolvedAt(now);
+            alert.setResolvedBy(resolvedBy);
+            alert.setPendingDurationSeconds(duration.getSeconds());
+            alert.setResolutionDescription(description);
+            alertLogRepository.save(alert);
+        }
+        
+        return pendingAlerts;
+    }
+
+    // ============================================================
+    // RESOLVE SINGLE ALERT + SIREN OFF
+    // ============================================================
+    @Transactional
+    public AlertLog resolveAlert(Long alertId, String resolvedBy, String clientIp, String description) {
+        Optional<AlertLog> alertOpt = alertLogRepository.findById(alertId);
+        if (alertOpt.isEmpty()) {
+            throw new RuntimeException("Alert not found with ID: " + alertId);
+        }
+
+        AlertLog alert = alertOpt.get();
+        
+        if (!"PENDING".equals(alert.getStatus())) {
+            throw new RuntimeException("Only PENDING alerts can be resolved. Current status: " + alert.getStatus());
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        Duration duration = Duration.between(alert.getReceivedAt(), now);
+        
+        // ===== UPDATE SIREN STATUS =====
+        if (alert.getAlarmSystem() != null) {
+            AlarmSystem system = alert.getAlarmSystem();
+            // Check if there are any other pending alerts for this system
+            long pendingCount = alertLogRepository.countByAlarmSystemIdAndStatus(system.getId(), "PENDING");
+            // If this is the last pending alert, turn siren OFF
+            if (pendingCount <= 1) {
+                system.setSirenStatus("OFF");
+                alarmSystemRepository.save(system);
+            }
+        }
+        
+        alert.setStatus("RESOLVED");
+        alert.setResolvedAt(now);
+        alert.setResolvedBy(resolvedBy);
+        alert.setPendingDurationSeconds(duration.getSeconds());
+        alert.setResolvedFromIp(clientIp);
+        
+        if (description != null && !description.trim().isEmpty()) {
+            alert.setResolutionDescription(description.trim());
+        }
+
+        AlertLog savedAlert = alertLogRepository.save(alert);
+        
+        if (savedAlert.getAlarmSystem() != null && savedAlert.getZoneNumbers() != null) {
+            savedAlert.setZoneNames(getZoneNames(savedAlert.getAlarmSystem().getId(), savedAlert.getZoneNumbers()));
+        }
+        
+        return savedAlert;
+    }
+
+    // ============================================================
+    // FIND SYSTEM
+    // ============================================================
+    private Optional<AlarmSystem> findSystem(String atmCode, String simNumber) {
+        Optional<AlarmSystem> machineOpt = Optional.empty();
+        
+        if (atmCode != null && !atmCode.trim().isEmpty()) {
+            machineOpt = alarmSystemRepository.findBySystemCode(atmCode.trim());
+        }
+        
+        if (machineOpt.isEmpty() && simNumber != null && !simNumber.isEmpty()) {
+            String rawSim = simNumber.trim();
+            machineOpt = alarmSystemRepository.findBySimNumber(rawSim);
+
+            if (machineOpt.isEmpty()) {
+                String digits = rawSim.replaceAll("\\D+", "");
+                if (!digits.isEmpty()) {
+                    machineOpt = alarmSystemRepository.findBySimNumber(digits);
+                }
+            }
+
+            if (machineOpt.isEmpty()) {
+                String digits = rawSim.replaceAll("\\D+", "");
+                if (digits.startsWith("94") && digits.length() > 2) {
+                    String local = "0" + digits.substring(2);
+                    machineOpt = alarmSystemRepository.findBySimNumber(local);
+                }
+            }
+        }
+
+        return machineOpt;
+    }
+
+    // ============================================================
+    // GET ZONE NAMES
+    // ============================================================
     private String getZoneNames(Long systemId, String zoneNumbers) {
         if (zoneNumbers == null || zoneNumbers.isEmpty() || zoneNumbers.equals("00")) {
             return "No Zone";
@@ -149,6 +319,9 @@ public class AlertService {
         return String.join(", ", zoneNames);
     }
 
+    // ============================================================
+    // EXTRACT ZONE NUMBERS
+    // ============================================================
     private String extractZoneNumbers(String smsContent) {
         List<String> zones = new ArrayList<>();
         
@@ -181,7 +354,9 @@ public class AlertService {
         return uniqueZones.isEmpty() ? "" : String.join(",", uniqueZones);
     }
 
-    // ===== FIXED: Get all alerts with zone names =====
+    // ============================================================
+    // GET ALL ALERTS
+    // ============================================================
     public List<AlertLog> getAllAlerts(String username) {
         try {
             List<AlertLog> alerts;
@@ -205,7 +380,6 @@ public class AlertService {
                 alerts = alertLogRepository.findAllByOrderByReceivedAtDesc();
             }
             
-            // Populate zone names for each alert
             for (AlertLog alert : alerts) {
                 if (alert.getAlarmSystem() != null && alert.getZoneNumbers() != null && !alert.getZoneNumbers().isEmpty()) {
                     try {
@@ -227,41 +401,9 @@ public class AlertService {
         }
     }
 
-    @Transactional
-    public AlertLog resolveAlert(Long alertId, String resolvedBy, String clientIp, String description) {
-        Optional<AlertLog> alertOpt = alertLogRepository.findById(alertId);
-        if (alertOpt.isEmpty()) {
-            throw new RuntimeException("Alert not found with ID: " + alertId);
-        }
-
-        AlertLog alert = alertOpt.get();
-        
-        if (!"PENDING".equals(alert.getStatus())) {
-            throw new RuntimeException("Only PENDING alerts can be resolved. Current status: " + alert.getStatus());
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-        Duration duration = Duration.between(alert.getReceivedAt(), now);
-        
-        alert.setStatus("RESOLVED");
-        alert.setResolvedAt(now);
-        alert.setResolvedBy(resolvedBy);
-        alert.setPendingDurationSeconds(duration.getSeconds());
-        alert.setResolvedFromIp(clientIp);
-        
-        if (description != null && !description.trim().isEmpty()) {
-            alert.setResolutionDescription(description.trim());
-        }
-
-        AlertLog savedAlert = alertLogRepository.save(alert);
-        
-        if (savedAlert.getAlarmSystem() != null && savedAlert.getZoneNumbers() != null) {
-            savedAlert.setZoneNames(getZoneNames(savedAlert.getAlarmSystem().getId(), savedAlert.getZoneNumbers()));
-        }
-        
-        return savedAlert;
-    }
-
+    // ============================================================
+    // GET ALERT WITH DETAILS
+    // ============================================================
     public AlertLog getAlertWithDetails(Long alertId) {
         try {
             AlertLog alert = alertLogRepository.findByIdWithSystem(alertId);
@@ -275,6 +417,9 @@ public class AlertService {
         }
     }
 
+    // ============================================================
+    // REGISTER HEARTBEAT
+    // ============================================================
     public void registerHeartbeat(String atmCode, String simNumber) {
         Optional<AlarmSystem> machineOpt = Optional.empty();
         if (atmCode != null && !atmCode.trim().isEmpty()) {
@@ -304,6 +449,9 @@ public class AlertService {
         }
     }
 
+    // ============================================================
+    // COUNT METHODS
+    // ============================================================
     public long getPendingCount() {
         return alertLogRepository.countByStatus("PENDING");
     }
@@ -349,6 +497,91 @@ public class AlertService {
         } catch (Exception e) {
             e.printStackTrace();
             return new ArrayList<>();
+        }
+    }
+
+    // ============================================================
+    // DISARM SYSTEM (API/Dashboard)
+    // ============================================================
+    @Transactional
+    public DisarmResult disarmSystem(String systemCode, String triggeredBy) {
+        Optional<AlarmSystem> machineOpt = alarmSystemRepository.findBySystemCode(systemCode);
+        if (machineOpt.isEmpty()) {
+            throw new IllegalArgumentException("System not found: " + systemCode);
+        }
+        AlarmSystem system = machineOpt.get();
+        system.setSirenStatus("OFF");
+        alarmSystemRepository.save(system);
+
+        List<AlertLog> resolved = resolveAllPendingAlerts(system.getId(), triggeredBy != null ? triggeredBy : "SYSTEM", "System disarmed");
+
+        // Create DISARM log
+        AlertLog disarmLog = new AlertLog();
+        disarmLog.setAlarmSystem(system);
+        disarmLog.setStatus("RESOLVED");
+        disarmLog.setAlertType("DISARM");
+        disarmLog.setRawMessage("System disarmed via API/Dashboard");
+        disarmLog.setReceivedAt(LocalDateTime.now());
+        disarmLog.setResolvedAt(LocalDateTime.now());
+        disarmLog.setResolvedBy(triggeredBy != null ? triggeredBy : "SYSTEM");
+        disarmLog.setResolutionDescription("System disarmed");
+        disarmLog.setZoneNumber(0);
+        disarmLog.setZoneNumbers("00");
+        disarmLog.setZoneNames("No Zone");
+        alertLogRepository.save(disarmLog);
+
+        return new DisarmResult(resolved.size());
+    }
+
+    // ============================================================
+    // STOP SIREN ONLY (API/Dashboard)
+    // ============================================================
+    @Transactional
+    public SirenStopResult stopSirenOnly(String systemCode, String triggeredBy) {
+        Optional<AlarmSystem> machineOpt = alarmSystemRepository.findBySystemCode(systemCode);
+        if (machineOpt.isEmpty()) {
+            throw new IllegalArgumentException("System not found: " + systemCode);
+        }
+        AlarmSystem system = machineOpt.get();
+        system.setSirenStatus("OFF");
+        alarmSystemRepository.save(system);
+
+        // Get count of pending alerts for this system
+        long pendingCount = alertLogRepository.countByAlarmSystemIdAndStatus(system.getId(), "PENDING");
+
+        // Create SIREN_STOP log
+        AlertLog stopLog = new AlertLog();
+        stopLog.setAlarmSystem(system);
+        stopLog.setStatus("PENDING");
+        stopLog.setAlertType("SIREN_STOP");
+        stopLog.setRawMessage("Siren stopped via API/Dashboard");
+        stopLog.setReceivedAt(LocalDateTime.now());
+        stopLog.setZoneNumber(0);
+        stopLog.setZoneNumbers("00");
+        stopLog.setZoneNames("No Zone");
+        stopLog.setResolutionDescription("Siren stopped by " + (triggeredBy != null ? triggeredBy : "user") + ". Alert still pending.");
+        alertLogRepository.save(stopLog);
+
+        return new SirenStopResult((int) pendingCount);
+    }
+
+    public static class DisarmResult {
+        private final int resolvedCount;
+        public DisarmResult(int resolvedCount) {
+            this.resolvedCount = resolvedCount;
+        }
+        public int getResolvedCount() {
+            return resolvedCount;
+        }
+    }
+
+    public static class SirenStopResult {
+        private final int pendingCount;
+        public SirenStopResult(int pendingCount) {
+            this.pendingCount = pendingCount;
+        }
+        public int getPendingCount() {
+            return pendingCount;
         }
     }
 }

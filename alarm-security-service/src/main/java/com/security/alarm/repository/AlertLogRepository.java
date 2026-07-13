@@ -13,6 +13,11 @@ public interface AlertLogRepository extends JpaRepository<AlertLog, Long> {
     
     List<AlertLog> findAllByAlarmSystemIdInOrderByReceivedAtDesc(List<Long> systemIds);
     
+    // ===== FOR SIREN CONTROL =====
+    List<AlertLog> findByAlarmSystemIdAndStatusOrderByReceivedAtDesc(Long systemId, String status);
+    
+    long countByAlarmSystemIdAndStatus(Long systemId, String status);
+    
     long countByStatus(String status);
     
     @Query("SELECT COUNT(a) FROM AlertLog a WHERE a.status = 'RESOLVED'")
@@ -21,7 +26,7 @@ public interface AlertLogRepository extends JpaRepository<AlertLog, Long> {
     @Query("SELECT a FROM AlertLog a LEFT JOIN FETCH a.alarmSystem WHERE a.id = :id")
     AlertLog findByIdWithSystem(Long id);
     
-    // ===== REPORT QUERIES =====
+    // Report queries
     List<AlertLog> findByReceivedAtBetween(LocalDateTime from, LocalDateTime to);
     
     List<AlertLog> findByAlarmSystemIdInAndReceivedAtBetween(List<Long> systemIds, LocalDateTime from, LocalDateTime to);

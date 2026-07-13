@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { MapPin, MessageSquare, Phone, Bell, AlertTriangle, CheckCircle, Timer, Filter, X, Search } from 'lucide-react';
+import { MapPin, Clock, MessageSquare, Phone, Bell, AlertTriangle, CheckCircle, Timer, Filter, X, Search } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import AlertModal from './AlertModal';
 import AlertDetailsPanel from './AlertDetailsPanel';
@@ -48,6 +48,9 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
     if (lowerType.includes('zone') || lowerType.includes('alarm')) {
       return 'ZONE_ALARM';
     }
+    if (status === 'SIREN_STOP') {
+      return 'SIREN_STOP';
+    }
     return 'OTHER';
   };
 
@@ -57,6 +60,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
       case 'ARMED': return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
       case 'RESOLVED': return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
       case 'ZONE_ALARM': return 'text-red-400 bg-red-500/10 border-red-500/20';
+      case 'SIREN_STOP': return 'text-orange-400 bg-orange-500/10 border-orange-500/20';
       default: return 'text-slate-400 bg-slate-500/10 border-slate-500/20';
     }
   };
@@ -67,6 +71,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
       case 'ARMED': return 'ARMED';
       case 'RESOLVED': return 'Done';
       case 'ZONE_ALARM': return 'Zone';
+      case 'SIREN_STOP': return '🔕 Stop';
       default: return 'Other';
     }
   };
@@ -88,6 +93,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
       ARMED: 0,
       RESOLVED: 0,
       ZONE_ALARM: 0,
+      SIREN_STOP: 0,
       OTHER: 0
     };
     alerts.forEach(alert => {
@@ -162,6 +168,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
       { value: 'CALL', label: '📞 Call' },
       { value: 'ARMED', label: '🟡 ARMED' },
       { value: 'RESOLVED', label: '✅ Done' },
+      { value: 'SIREN_STOP', label: '🔕 Siren Stop' },
       { value: 'OTHER', label: '📌 Other' }
     ];
 
@@ -294,7 +301,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
     setIsResolveModalOpen(false);
   };
 
-  // ===== RENDER ZONE BADGES - SUPPORTS BOTH NAMES AND NUMBERS =====
+  // ===== RENDER ZONE BADGES =====
   const renderZoneBadges = (zoneData) => {
     if (!zoneData || zoneData === '00' || zoneData === '0') {
       return <span className="text-slate-500 text-[9px]">—</span>;
@@ -302,7 +309,6 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
     const zones = zoneData.split(',').map(z => z.trim()).filter(z => z !== '');
     if (zones.length === 0) return <span className="text-slate-500 text-[9px]">—</span>;
     
-    // Check if it's zone names (contains letters) or zone numbers
     const isNames = /[a-zA-Z]/.test(zoneData);
     
     return (
@@ -314,6 +320,27 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
         ))}
       </div>
     );
+  };
+
+  // ===== RENDER SIREN STATUS =====
+  const renderSirenStatus = (alert) => {
+    if (!alert.alarmSystem) return null;
+    const status = alert.alarmSystem.sirenStatus;
+    if (status === 'ON') {
+      return (
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse">
+          🔔 ON
+        </span>
+      );
+    }
+    if (status === 'OFF') {
+      return (
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-slate-500/20 text-slate-400 border border-slate-500/30">
+          🔕 OFF
+        </span>
+      );
+    }
+    return null;
   };
 
   if (loading) {
@@ -376,7 +403,8 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                 <tr>
                   <th className="py-1.5 px-2 w-[65px]">Status</th>
                   <th className="py-1.5 px-2 w-[80px]">System</th>
-                  <th className="py-1.5 px-2 w-[45px]">Cat</th>
+                  <th className="py-1.5 px-2 w-[50px]">Cat</th>
+                  <th className="py-1.5 px-2 w-[50px]">Siren</th>
                   <th className="py-1.5 px-2 w-[60px]">Zones</th>
                   <th className="py-1.5 px-2 w-[130px]">Message</th>
                   <th className="py-1.5 px-2 w-[70px]">Time</th>
@@ -388,18 +416,27 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                 {filteredAlerts.map((alert) => {
                   const isPending = alert.status === 'PENDING';
                   const category = getAlertCategory(alert);
-                  // ===== USE zoneNames IF AVAILABLE =====
                   const zoneDisplay = alert.zoneNames || alert.zoneNumbers;
                   return (
                     <tr key={alert.id} onClick={() => handleRowClick(alert)} className="hover:bg-slate-900/40 transition-colors cursor-pointer">
                       <td className="py-1.5 px-2"><StatusBadge status={alert.status} /></td>
                       <td className="py-1.5 px-2 font-mono font-bold text-white text-[10px] truncate max-w-[80px]">
-                        {alert.alarmSystem?.systemCode || 'UNKNOWN'}
+                        <div className="flex items-center gap-1">
+                          {alert.alarmSystem?.systemCode || 'UNKNOWN'}
+                          {renderSirenStatus(alert)}
+                        </div>
                       </td>
                       <td className="py-1.5 px-2">
                         <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] font-mono border ${getCategoryColor(category)}`}>
                           {getCategoryShort(category)}
                         </span>
+                      </td>
+                      <td className="py-1.5 px-2 text-center">
+                        {alert.alarmSystem?.sirenStatus === 'ON' ? (
+                          <span className="text-red-400 text-[10px] font-bold animate-pulse">🔔</span>
+                        ) : (
+                          <span className="text-slate-500 text-[10px]">🔕</span>
+                        )}
                       </td>
                       <td className="py-1.5 px-2">{renderZoneBadges(zoneDisplay)}</td>
                       <td className="py-1.5 px-2 max-w-[130px]">
@@ -447,6 +484,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                   <th className="py-1 px-1.5 w-[55px]">Status</th>
                   <th className="py-1 px-1.5 w-[60px]">System</th>
                   <th className="py-1 px-1.5 w-[35px]">Cat</th>
+                  <th className="py-1 px-1.5 w-[50px]">Siren</th>
                   <th className="py-1 px-1.5 w-[50px]">Zones</th>
                   <th className="py-1 px-1.5 w-[100px]">Message</th>
                   <th className="py-1 px-1.5 w-[55px]">Time</th>
@@ -462,12 +500,22 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                     <tr key={alert.id} onClick={() => handleRowClick(alert)} className="hover:bg-slate-900/40 transition-colors cursor-pointer">
                       <td className="py-1 px-1.5"><StatusBadge status={alert.status} /></td>
                       <td className="py-1 px-1.5 font-mono font-bold text-white text-[9px] truncate max-w-[60px]">
-                        {alert.alarmSystem?.systemCode || 'UNKNOWN'}
+                        <div className="flex items-center gap-1">
+                          {alert.alarmSystem?.systemCode || 'UNKNOWN'}
+                          {renderSirenStatus(alert)}
+                        </div>
                       </td>
                       <td className="py-1 px-1.5">
                         <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[7px] font-mono border ${getCategoryColor(category)}`}>
                           {getCategoryShort(category)}
                         </span>
+                      </td>
+                      <td className="py-1 px-1.5 text-center">
+                        {alert.alarmSystem?.sirenStatus === 'ON' ? (
+                          <span className="text-red-400 text-[8px] animate-pulse">🔔</span>
+                        ) : (
+                          <span className="text-slate-500 text-[8px]">🔕</span>
+                        )}
                       </td>
                       <td className="py-1 px-1.5">{renderZoneBadges(zoneDisplay)}</td>
                       <td className="py-1 px-1.5 max-w-[100px]">
@@ -514,6 +562,7 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                       <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[7px] font-mono border ${getCategoryColor(category)}`}>
                         {getCategoryShort(category)}
                       </span>
+                      {renderSirenStatus(alert)}
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {isPending && (

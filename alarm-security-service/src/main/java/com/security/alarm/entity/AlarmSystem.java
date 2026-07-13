@@ -33,4 +33,20 @@ public class AlarmSystem {
 
     @Column(name = "last_status_changed_at")
     private LocalDateTime lastStatusChangedAt = LocalDateTime.now();
+
+    // ===== Z8B PANEL FIELDS =====
+    @Column(name = "panel_sim_number")
+    private String panelSimNumber;
+
+    @Column(name = "panel_password")
+    private String panelPassword = "8888";
+
+    @Column(name = "disarm_command")
+    private String disarmCommand = "8888#2A";
+
+    @Column(name = "arm_command")
+    private String armCommand = "8888#1A";
+
+    @Column(name = "siren_status")
+    private String sirenStatus = "OFF";
 }
