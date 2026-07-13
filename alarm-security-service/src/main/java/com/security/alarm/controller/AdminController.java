@@ -165,6 +165,10 @@ public class AdminController {
 
     @PostMapping("/systems")
     public ResponseEntity<?> createSystem(@RequestBody AlarmSystem system) {
+        if (alarmSystemRepository.count() >= 5) {
+            return ResponseEntity.badRequest().body("System registration limit reached. A maximum of 5 systems can be registered.");
+        }
+
         if (system.getLocation() == null || system.getLocation().trim().isEmpty()) {
             return ResponseEntity.badRequest().body("Location is required");
         }
