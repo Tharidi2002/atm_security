@@ -18,58 +18,31 @@ public class WebConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // ============================================================
-        // ALLOWED ORIGINS - Add ALL Vercel domains
+        // ALLOW ALL ORIGINS - For Production (Temporary)
         // ============================================================
-        configuration.setAllowedOriginPatterns(List.of(
-            // Vercel Production Domains
-            "https://alarm-security-system-java.vercel.app",
-            "https://alarm-security-system-jawa.vercel.app",
-            "https://alarm-security-system-*.vercel.app",
-            "https://*.vercel.app",  // ALL Vercel domains
-            
-            // Railway Backend (Self)
-            "https://alarmsecuritysystem-production.up.railway.app",
-            
-            // Local Development
-            "http://localhost:5173",
-            "http://localhost:3000",
-            "http://127.0.0.1:5173",
-            "http://127.0.0.1:3000"
-        ));
+        configuration.setAllowedOriginPatterns(List.of("*"));
         
         // ============================================================
-        // ALLOWED METHODS
+        // ALLOW ALL METHODS
         // ============================================================
         configuration.setAllowedMethods(List.of(
             "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"
         ));
         
         // ============================================================
-        // ALLOWED HEADERS
+        // ALLOW ALL HEADERS
         // ============================================================
-        configuration.setAllowedHeaders(List.of(
-            "*",
-            "Authorization",
-            "Content-Type",
-            "Accept",
-            "Origin",
-            "X-Requested-With",
-            "Access-Control-Request-Method",
-            "Access-Control-Request-Headers"
-        ));
+        configuration.setAllowedHeaders(List.of("*"));
         
         // ============================================================
-        // EXPOSED HEADERS
+        // EXPOSE ALL HEADERS
         // ============================================================
-        configuration.setExposedHeaders(List.of(
-            "Authorization",
-            "Content-Disposition"
-        ));
+        configuration.setExposedHeaders(List.of("*"));
         
         // ============================================================
-        // CREDENTIALS
+        // CREDENTIALS - False for now
         // ============================================================
-        configuration.setAllowCredentials(true);
+        configuration.setAllowCredentials(false);
         
         // ============================================================
         // PREFLIGHT CACHE - 1 hour
@@ -86,12 +59,11 @@ public class WebConfig {
         source.registerCorsConfiguration("/api/admin/**", configuration);
         source.registerCorsConfiguration("/api/alerts/**", configuration);
         source.registerCorsConfiguration("/api/reports/**", configuration);
-        source.registerCorsConfiguration("/api/admin/zones/**", configuration);
         
         FilterRegistrationBean<CorsFilter> bean = new FilterRegistrationBean<>(new CorsFilter(source));
         bean.setOrder(Ordered.HIGHEST_PRECEDENCE);
         
-        System.out.println("✅ CORS Configuration updated with Vercel domains");
+        System.out.println("✅ CORS Configuration initialized with ALLOW_ALL");
         
         return bean;
     }
