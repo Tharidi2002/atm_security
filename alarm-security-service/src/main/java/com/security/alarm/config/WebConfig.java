@@ -7,63 +7,38 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
 @Configuration
 public class WebConfig {
 
+    private static final Logger logger = LoggerFactory.getLogger(WebConfig.class);
+
     @Bean
     public FilterRegistrationBean<CorsFilter> corsFilter() {
+        logger.info("🚀🚀🚀 CORS Configuration Initializing...");
+        
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // ============================================================
-        // ALLOW ALL ORIGINS - For Production (Temporary)
-        // ============================================================
+        // Allow ALL origins (temporary for production)
         configuration.setAllowedOriginPatterns(List.of("*"));
-        
-        // ============================================================
-        // ALLOW ALL METHODS
-        // ============================================================
-        configuration.setAllowedMethods(List.of(
-            "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"
-        ));
-        
-        // ============================================================
-        // ALLOW ALL HEADERS
-        // ============================================================
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"));
         configuration.setAllowedHeaders(List.of("*"));
-        
-        // ============================================================
-        // EXPOSE ALL HEADERS
-        // ============================================================
         configuration.setExposedHeaders(List.of("*"));
-        
-        // ============================================================
-        // CREDENTIALS - False for now
-        // ============================================================
         configuration.setAllowCredentials(false);
-        
-        // ============================================================
-        // PREFLIGHT CACHE - 1 hour
-        // ============================================================
         configuration.setMaxAge(3600L);
         
-        // ============================================================
-        // REGISTER CORS MAPPINGS
-        // ============================================================
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
-        source.registerCorsConfiguration("/api/**", configuration);
-        source.registerCorsConfiguration("/api/auth/**", configuration);
-        source.registerCorsConfiguration("/api/admin/**", configuration);
-        source.registerCorsConfiguration("/api/alerts/**", configuration);
-        source.registerCorsConfiguration("/api/reports/**", configuration);
         
         FilterRegistrationBean<CorsFilter> bean = new FilterRegistrationBean<>(new CorsFilter(source));
         bean.setOrder(Ordered.HIGHEST_PRECEDENCE);
         
-        System.out.println("✅ CORS Configuration initialized with ALLOW_ALL");
+        logger.info("✅✅✅ CORS Configuration initialized with ALLOW_ALL");
+        logger.info("✅ Allowed Origin Patterns: {}", configuration.getAllowedOriginPatterns());
         
         return bean;
     }
