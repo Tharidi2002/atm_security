@@ -164,7 +164,6 @@ export const resetUserPassword = async (userId, newPassword) => {
 };
 
 // ===== ZONE MANAGEMENT =====
-
 export const fetchZones = async (systemId) => {
   const response = await fetch(`${API_BASE_URL}/admin/zones/system/${systemId}`);
   if (!response.ok) throw new Error('Failed to fetch zones');

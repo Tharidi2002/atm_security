@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Shield, User, Lock, Eye, EyeOff, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import PropTypes from 'prop-types';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+
 export default function Register({ onBackToLogin }) {
   const [formData, setFormData] = useState({
     username: '',
@@ -18,7 +20,6 @@ export default function Register({ onBackToLogin }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear errors when user types
     if (error) setError('');
   };
 
@@ -29,7 +30,6 @@ export default function Register({ onBackToLogin }) {
 
     const { username, password, confirmPassword, role } = formData;
 
-    // Frontend validation
     if (!username.trim()) {
       setError('Username is required');
       return;
@@ -58,7 +58,7 @@ export default function Register({ onBackToLogin }) {
     setLoading(true);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'}/auth/register`, {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -79,7 +79,6 @@ export default function Register({ onBackToLogin }) {
 
       setSuccess('✅ Registration successful! You can now login.');
       
-      // Clear form
       setFormData({
         username: '',
         password: '',
@@ -87,7 +86,6 @@ export default function Register({ onBackToLogin }) {
         role: 'ADMIN'
       });
 
-      // Auto redirect after 2 seconds
       setTimeout(() => {
         if (onBackToLogin) onBackToLogin();
       }, 2000);
@@ -101,12 +99,10 @@ export default function Register({ onBackToLogin }) {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 relative overflow-hidden font-sans">
-      {/* Decorative Gradients */}
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/10 rounded-full blur-[120px]" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-emerald-500/5 rounded-full blur-[120px]" />
 
       <div className="w-full max-w-md bg-slate-900/80 backdrop-blur-xl border border-slate-800/80 rounded-2xl shadow-2xl p-8 relative z-10 animate-fade-in">
-        {/* Back Button */}
         <button
           onClick={onBackToLogin}
           className="absolute top-4 left-4 p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
@@ -127,7 +123,6 @@ export default function Register({ onBackToLogin }) {
           </p>
         </div>
 
-        {/* Error Message */}
         {error && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-2.5 mb-4 text-sm text-red-400 animate-shake">
             <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
@@ -135,7 +130,6 @@ export default function Register({ onBackToLogin }) {
           </div>
         )}
 
-        {/* Success Message */}
         {success && (
           <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 flex items-start gap-2.5 mb-4 text-sm text-emerald-400">
             <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
@@ -144,7 +138,6 @@ export default function Register({ onBackToLogin }) {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Username */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold tracking-wide uppercase text-slate-400 font-mono">
               Username
@@ -163,7 +156,6 @@ export default function Register({ onBackToLogin }) {
             </div>
           </div>
 
-          {/* Password */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold tracking-wide uppercase text-slate-400 font-mono">
               Password
@@ -191,7 +183,6 @@ export default function Register({ onBackToLogin }) {
             </div>
           </div>
 
-          {/* Confirm Password */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold tracking-wide uppercase text-slate-400 font-mono">
               Confirm Password
@@ -219,7 +210,6 @@ export default function Register({ onBackToLogin }) {
             </div>
           </div>
 
-          {/* Role Selection */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold tracking-wide uppercase text-slate-400 font-mono">
               Account Type
@@ -235,7 +225,6 @@ export default function Register({ onBackToLogin }) {
             </select>
           </div>
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
@@ -249,7 +238,6 @@ export default function Register({ onBackToLogin }) {
           </button>
         </form>
 
-        {/* Login Link */}
         <p className="text-center text-xs text-slate-500 mt-4 font-mono">
           Already have an account?{' '}
           <button

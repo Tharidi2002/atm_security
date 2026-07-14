@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Shield, Lock, User, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import PropTypes from 'prop-types';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+
 export default function Login({ onLoginSuccess, onShowRegister }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -20,7 +22,7 @@ export default function Login({ onLoginSuccess, onShowRegister }) {
     setError('');
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'}/auth/login`, {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -44,7 +46,6 @@ export default function Login({ onLoginSuccess, onShowRegister }) {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 relative overflow-hidden font-sans">
-      {/* Decorative Gradients */}
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-red-500/10 rounded-full blur-[120px]" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-red-500/5 rounded-full blur-[120px]" />
 
@@ -129,7 +130,6 @@ export default function Login({ onLoginSuccess, onShowRegister }) {
           </button>
         </form>
 
-        {/* Register Link - NEW */}
         <p className="text-center text-xs text-slate-500 mt-4 font-mono">
           Do not have an account?{' '}
           <button
