@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Shield, RefreshCw, LogOut, Settings, FileText, Power, PowerOff, Loader2 } from 'lucide-react';
 
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
 export default function Navbar({ user, onLogout, onOpenAdminPanel, onRefresh, onOpenReport }) {
   const [loading, setLoading] = useState(false);
