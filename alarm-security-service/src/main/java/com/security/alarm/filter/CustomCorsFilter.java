@@ -19,6 +19,8 @@ public class CustomCorsFilter implements Filter {
         HttpServletResponse httpResponse = (HttpServletResponse) response;
         HttpServletRequest httpRequest = (HttpServletRequest) request;
 
+        System.out.println("[CustomCorsFilter] Intercepting: " + httpRequest.getMethod() + " " + httpRequest.getRequestURI());
+
         // Add CORS headers to EVERY response
         httpResponse.setHeader("Access-Control-Allow-Origin", "*");
         httpResponse.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
