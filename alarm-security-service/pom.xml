@@ -66,6 +66,11 @@
 			<version>6.2.4</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+
 		<!-- iText 7 for PDF Generation -->
 		<dependency>
 			<groupId>com.itextpdf</groupId>

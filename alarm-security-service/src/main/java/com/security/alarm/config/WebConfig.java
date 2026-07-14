@@ -3,11 +3,10 @@ package com.security.alarm.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
-import org.springframework.boot.web.servlet.FilterRegistrationBean; // මේක අනිවාර්යයෙන්ම import කරන්න
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 
 import java.util.List;
 
@@ -17,10 +16,14 @@ public class WebConfig {
     @Bean
     public FilterRegistrationBean<CorsFilter> corsFilter() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(
+        
+        // 💡 මෙතනට ඔයාගේ java සහ jawa කියන domains දෙකම සහ පොදු "*" එකත් ඇතුළත් කළා ආරක්ෂාවට
+        configuration.setAllowedOriginPatterns(List.of(
+                "https://alarm-security-system-java.vercel.app",
                 "https://alarm-security-system-jawa.vercel.app",
                 "http://localhost:5173",
-                "http://localhost:3000"
+                "http://localhost:3000",
+                "*"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
@@ -30,9 +33,8 @@ public class WebConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         
-        // මෙතන තමයි වැදගත්ම වෙනස: FilterRegistrationBean එකක් පාවිච්චි කරලා Priority එක වැඩි කරනවා
         FilterRegistrationBean<CorsFilter> bean = new FilterRegistrationBean<>(new CorsFilter(source));
-        bean.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        bean.setOrder(Ordered.HIGHEST_PRECEDENCE); // 👈 හැමදේටම කලින් මේක රන් වෙන්න ඕනේ
         return bean;
     }
 }
