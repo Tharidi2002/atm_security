@@ -35,6 +35,17 @@ public class AuthController {
         this.passwordEncoder = passwordEncoder;
     }
 
+    // ===== HANDLE OPTIONS REQUEST =====
+    @RequestMapping(value = "/**", method = RequestMethod.OPTIONS)
+    public ResponseEntity<?> handleOptions() {
+        return ResponseEntity.ok()
+            .header("Access-Control-Allow-Origin", "*")
+            .header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
+            .header("Access-Control-Allow-Headers", "*")
+            .header("Access-Control-Max-Age", "3600")
+            .build();
+    }
+
     // ========== LOGIN ENDPOINT ==========
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> credentials) {
