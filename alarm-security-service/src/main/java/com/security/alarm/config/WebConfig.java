@@ -15,6 +15,7 @@ public class WebConfig {
         CorsConfiguration config = new CorsConfiguration();
         
         // Allow ALL origins, methods, and headers
+        config.setAllowedOrigins(Arrays.asList("*"));
         config.setAllowedOriginPatterns(Arrays.asList("*"));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("*"));
