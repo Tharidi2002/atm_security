@@ -17,24 +17,86 @@ public class WebConfig {
     public FilterRegistrationBean<CorsFilter> corsFilter() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // 💡 මෙතනට ඔයාගේ java සහ jawa කියන domains දෙකම සහ පොදු "*" එකත් ඇතුළත් කළා ආරක්ෂාවට
+        // ============================================================
+        // ALLOWED ORIGINS - Vercel Frontend Domains
+        // ============================================================
         configuration.setAllowedOriginPatterns(List.of(
-                "https://alarm-security-system-java.vercel.app",
-                "https://alarm-security-system-jawa.vercel.app",
-                "http://localhost:5173",
-                "http://localhost:3000",
-                "*"
+            // Vercel Production Domains
+            "https://alarm-security-system-java.vercel.app",
+            "https://alarm-security-system-jawa.vercel.app",
+            "https://alarm-security-system-*.vercel.app",
+            
+            // Railway Backend (Self)
+            "https://alarmsecuritysystem-production.up.railway.app",
+            
+            // Local Development
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:3000",
+            
+            // Network IPs (for testing)
+            "http://192.168.8.*:5173",
+            "http://192.168.8.*:3000"
         ));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(false);
+        
+        // ============================================================
+        // ALLOWED METHODS
+        // ============================================================
+        configuration.setAllowedMethods(List.of(
+            "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"
+        ));
+        
+        // ============================================================
+        // ALLOWED HEADERS
+        // ============================================================
+        configuration.setAllowedHeaders(List.of(
+            "*",
+            "Authorization",
+            "Content-Type",
+            "Accept",
+            "Origin",
+            "X-Requested-With",
+            "Access-Control-Request-Method",
+            "Access-Control-Request-Headers"
+        ));
+        
+        // ============================================================
+        // EXPOSED HEADERS (Frontend එකට පෙන්වන්න ඕන headers)
+        // ============================================================
+        configuration.setExposedHeaders(List.of(
+            "Authorization",
+            "Content-Disposition"
+        ));
+        
+        // ============================================================
+        // CREDENTIALS - Allow cookies/tokens
+        // ============================================================
+        configuration.setAllowCredentials(true);
+        
+        // ============================================================
+        // PREFLIGHT CACHE - 1 hour
+        // ============================================================
         configuration.setMaxAge(3600L);
-
+        
+        // ============================================================
+        // REGISTER CORS MAPPINGS
+        // ============================================================
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration("/api/**", configuration);
+        source.registerCorsConfiguration("/api/auth/**", configuration);
+        source.registerCorsConfiguration("/api/admin/**", configuration);
+        source.registerCorsConfiguration("/api/alerts/**", configuration);
+        source.registerCorsConfiguration("/api/reports/**", configuration);
+        source.registerCorsConfiguration("/api/admin/zones/**", configuration);
         
         FilterRegistrationBean<CorsFilter> bean = new FilterRegistrationBean<>(new CorsFilter(source));
-        bean.setOrder(Ordered.HIGHEST_PRECEDENCE); // 👈 හැමදේටම කලින් මේක රන් වෙන්න ඕනේ
+        bean.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        
+        System.out.println("✅ CORS Configuration initialized with allowed origins: " + 
+                          configuration.getAllowedOriginPatterns());
+        
         return bean;
     }
 }
