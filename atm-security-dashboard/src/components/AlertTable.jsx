@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { MapPin, Clock, MessageSquare, Phone, Bell, AlertTriangle, CheckCircle, Timer, Filter, X, Search } from 'lucide-react';
+import { MapPin, MessageSquare, Phone, Bell, AlertTriangle, CheckCircle, Timer, Filter, X, Search } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import AlertModal from './AlertModal';
 import AlertDetailsPanel from './AlertDetailsPanel';
@@ -15,7 +15,6 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
   const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   
-  // ===== FILTER STATES =====
   const [filterCategory, setFilterCategory] = useState('ALL');
   const [filterSystem, setFilterSystem] = useState('ALL');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -23,13 +22,10 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
+    const interval = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // ===== CATEGORIZE ALERTS =====
   const getAlertCategory = (alert) => {
     const alertType = alert.alertType || '';
     const status = alert.status || '';
@@ -160,7 +156,6 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
     return durationStr.trim() || '0s';
   };
 
-  // ===== FILTER DROPDOWN =====
   const FilterDropdown = () => {
     const categories = [
       { value: 'ALL', label: '📊 All' },
@@ -179,16 +174,16 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
             setShowFilterDropdown(!showFilterDropdown);
             setShowSystemDropdown(false);
           }}
-          className="flex items-center gap-1 px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-[10px] font-mono text-slate-300 transition-all whitespace-nowrap"
+          className="flex items-center gap-1 px-1.5 sm:px-2 py-1 sm:py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-[9px] sm:text-[10px] font-mono text-slate-300 transition-all whitespace-nowrap"
         >
-          <Filter className="w-3 h-3" />
-          <span className="truncate max-w-[50px]">
+          <Filter className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+          <span className="truncate max-w-[35px] sm:max-w-[50px]">
             {filterCategory === 'ALL' ? 'All' : getCategoryShort(filterCategory)}
           </span>
-          <span className="text-slate-500 text-[9px]">({filterCategory === 'ALL' ? alerts.length : getCategoryCounts[filterCategory] || 0})</span>
+          <span className="text-slate-500 text-[8px] sm:text-[9px]">({filterCategory === 'ALL' ? alerts.length : getCategoryCounts[filterCategory] || 0})</span>
         </button>
         {showFilterDropdown && (
-          <div className="absolute top-full left-0 mt-1 w-40 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden" style={{ zIndex: 9999, minWidth: '150px', maxHeight: '300px', overflowY: 'auto' }}>
+          <div className="absolute top-full left-0 mt-1 w-36 sm:w-40 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden" style={{ zIndex: 9999, minWidth: '130px', maxHeight: '250px', overflowY: 'auto' }}>
             <div className="p-1 space-y-0.5">
               {categories.map((option) => (
                 <button
@@ -197,14 +192,14 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                     setFilterCategory(option.value);
                     setShowFilterDropdown(false);
                   }}
-                  className={`w-full text-left px-3 py-1.5 rounded-lg text-[10px] font-mono transition-all flex items-center justify-between ${
+                  className={`w-full text-left px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[9px] sm:text-[10px] font-mono transition-all flex items-center justify-between ${
                     filterCategory === option.value
                       ? 'bg-red-500/10 text-white border border-red-500/30'
                       : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                   }`}
                 >
                   <span>{option.label}</span>
-                  <span className="text-[9px] text-slate-500 flex-shrink-0 ml-2">({getCategoryCounts[option.value] || 0})</span>
+                  <span className="text-[8px] sm:text-[9px] text-slate-500 flex-shrink-0 ml-1 sm:ml-2">({getCategoryCounts[option.value] || 0})</span>
                 </button>
               ))}
             </div>
@@ -214,7 +209,6 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
     );
   };
 
-  // ===== SYSTEM DROPDOWN =====
   const SystemDropdown = () => {
     const systems = getUniqueSystems;
     return (
@@ -224,18 +218,18 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
             setShowSystemDropdown(!showSystemDropdown);
             setShowFilterDropdown(false);
           }}
-          className="flex items-center gap-1 px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-[10px] font-mono text-slate-300 transition-all whitespace-nowrap"
+          className="flex items-center gap-1 px-1.5 sm:px-2 py-1 sm:py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-[9px] sm:text-[10px] font-mono text-slate-300 transition-all whitespace-nowrap"
         >
-          <Search className="w-3 h-3" />
-          <span className="truncate max-w-[50px]">
+          <Search className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+          <span className="truncate max-w-[35px] sm:max-w-[50px]">
             {filterSystem === 'ALL' ? 'Systems' : filterSystem}
           </span>
-          <span className="text-slate-500 text-[9px]">
+          <span className="text-slate-500 text-[8px] sm:text-[9px]">
             ({filterSystem === 'ALL' ? alerts.length : getSystemCounts[filterSystem] || 0})
           </span>
         </button>
         {showSystemDropdown && (
-          <div className="absolute top-full left-0 mt-1 w-48 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden" style={{ zIndex: 9998, minWidth: '180px', maxHeight: '300px', overflowY: 'auto' }}>
+          <div className="absolute top-full left-0 mt-1 w-40 sm:w-48 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden" style={{ zIndex: 9998, minWidth: '150px', maxHeight: '250px', overflowY: 'auto' }}>
             <div className="p-1 space-y-0.5">
               {systems.map((system) => (
                 <button
@@ -244,14 +238,14 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                     setFilterSystem(system);
                     setShowSystemDropdown(false);
                   }}
-                  className={`w-full text-left px-3 py-1.5 rounded-lg text-[10px] font-mono transition-all flex items-center justify-between ${
+                  className={`w-full text-left px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[9px] sm:text-[10px] font-mono transition-all flex items-center justify-between ${
                     filterSystem === system
                       ? 'bg-red-500/10 text-white border border-red-500/30'
                       : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                   }`}
                 >
-                  <span className="truncate max-w-[120px]">{system === 'ALL' ? '📊 All Systems' : system}</span>
-                  <span className="text-[9px] text-slate-500 flex-shrink-0 ml-2">({getSystemCounts[system] || 0})</span>
+                  <span className="truncate max-w-[80px] sm:max-w-[120px]">{system === 'ALL' ? '📊 All Systems' : system}</span>
+                  <span className="text-[8px] sm:text-[9px] text-slate-500 flex-shrink-0 ml-1 sm:ml-2">({getSystemCounts[system] || 0})</span>
                 </button>
               ))}
             </div>
@@ -262,17 +256,17 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
   };
 
   const getMessageIcon = (alertType) => {
-    if (!alertType) return <MessageSquare className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />;
+    if (!alertType) return <MessageSquare className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400 flex-shrink-0" />;
     const lower = alertType.toLowerCase();
-    if (lower.includes('call')) return <Phone className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />;
-    if (lower.includes('alarm')) return <Bell className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />;
-    if (lower.includes('zone')) return <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />;
-    return <MessageSquare className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />;
+    if (lower.includes('call')) return <Phone className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-400 flex-shrink-0" />;
+    if (lower.includes('alarm')) return <Bell className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-red-400 flex-shrink-0" />;
+    if (lower.includes('zone')) return <AlertTriangle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400 flex-shrink-0" />;
+    return <MessageSquare className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400 flex-shrink-0" />;
   };
 
   const getMessagePreview = (alertType) => {
     if (!alertType) return '—';
-    if (alertType.length > 25) return alertType.substring(0, 25) + '…';
+    if (alertType.length > 20) return alertType.substring(0, 20) + '…';
     return alertType;
   };
 
@@ -301,20 +295,19 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
     setIsResolveModalOpen(false);
   };
 
-  // ===== RENDER ZONE BADGES =====
   const renderZoneBadges = (zoneData) => {
     if (!zoneData || zoneData === '00' || zoneData === '0') {
-      return <span className="text-slate-500 text-[9px]">—</span>;
+      return <span className="text-slate-500 text-[8px] sm:text-[9px]">—</span>;
     }
     const zones = zoneData.split(',').map(z => z.trim()).filter(z => z !== '');
-    if (zones.length === 0) return <span className="text-slate-500 text-[9px]">—</span>;
+    if (zones.length === 0) return <span className="text-slate-500 text-[8px] sm:text-[9px]">—</span>;
     
     const isNames = /[a-zA-Z]/.test(zoneData);
     
     return (
       <div className="flex flex-wrap gap-0.5">
         {zones.map((zone, index) => (
-          <span key={index} className="inline-flex items-center px-1 py-0.5 rounded text-[8px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 whitespace-nowrap">
+          <span key={index} className="inline-flex items-center px-0.5 py-0.5 rounded text-[7px] sm:text-[8px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 whitespace-nowrap">
             {isNames ? zone : `Z${String(zone).padStart(2, '0')}`}
           </span>
         ))}
@@ -322,20 +315,19 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
     );
   };
 
-  // ===== RENDER SIREN STATUS =====
   const renderSirenStatus = (alert) => {
     if (!alert.alarmSystem) return null;
     const status = alert.alarmSystem.sirenStatus;
     if (status === 'ON') {
       return (
-        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse">
+        <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[7px] sm:text-[8px] font-bold bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse">
           🔔 ON
         </span>
       );
     }
     if (status === 'OFF') {
       return (
-        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-slate-500/20 text-slate-400 border border-slate-500/30">
+        <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[7px] sm:text-[8px] font-bold bg-slate-500/20 text-slate-400 border border-slate-500/30">
           🔕 OFF
         </span>
       );
@@ -349,8 +341,8 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
 
   if (!alerts || alerts.length === 0) {
     return (
-      <div className="bg-slate-950 border border-slate-800 rounded-xl p-8 text-center">
-        <div className="text-emerald-400 font-mono text-base">🎉 System Secure. No alerts.</div>
+      <div className="bg-slate-950 border border-slate-800 rounded-xl p-6 sm:p-8 md:p-12 text-center">
+        <div className="text-emerald-400 font-mono text-base sm:text-lg">🎉 System Secure. No alerts.</div>
       </div>
     );
   }
@@ -359,10 +351,10 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
     <>
       <div ref={tableContainerRef} className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden flex flex-col">
         
-        {/* Filter Bar */}
-        <div className="sticky top-0 z-20 bg-slate-900/95 border-b border-slate-800 p-2 flex flex-wrap items-center justify-between gap-1.5 backdrop-blur flex-shrink-0">
-          <div className="flex items-center gap-1 flex-wrap">
-            <span className="text-[9px] text-slate-400 font-mono hidden xs:inline">Filter:</span>
+        {/* Filter Bar - Responsive */}
+        <div className="sticky top-0 z-20 bg-slate-900/95 border-b border-slate-800 p-1.5 sm:p-2 flex flex-wrap items-center justify-between gap-1 backdrop-blur flex-shrink-0">
+          <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap">
+            <span className="text-[8px] sm:text-[9px] text-slate-400 font-mono hidden xs:inline">Filter:</span>
             <FilterDropdown />
             <SystemDropdown />
             <div className="relative">
@@ -371,45 +363,45 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="🔍"
-                className="w-16 xs:w-24 sm:w-32 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-[10px] font-mono text-white placeholder-slate-500 focus:outline-none focus:border-red-500/50 transition-all"
+                className="w-12 xs:w-16 sm:w-24 md:w-32 bg-slate-800 border border-slate-700 rounded-lg px-1.5 sm:px-2 py-1 sm:py-1.5 text-[9px] sm:text-[10px] font-mono text-white placeholder-slate-500 focus:outline-none focus:border-red-500/50 transition-all"
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">
-                  <X className="w-2.5 h-2.5" />
+                <button onClick={() => setSearchQuery('')} className="absolute right-0.5 sm:right-1 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">
+                  <X className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
                 </button>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-1.5 text-[9px] text-slate-500 font-mono flex-wrap">
+          <div className="flex items-center gap-1 text-[8px] sm:text-[9px] text-slate-500 font-mono flex-wrap">
             <span><span className="text-white font-bold">{filteredAlerts.length}</span>/{alerts.length}</span>
             {(filterCategory !== 'ALL' || filterSystem !== 'ALL' || searchQuery) && (
               <button
                 onClick={() => { setFilterCategory('ALL'); setFilterSystem('ALL'); setSearchQuery(''); }}
-                className="flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors text-[8px]"
+                className="flex items-center gap-0.5 px-1 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors text-[7px] sm:text-[8px]"
               >
-                <X className="w-2 h-2" /> Clear
+                <X className="w-1.5 h-1.5 sm:w-2 sm:h-2" /> Clear
               </button>
             )}
           </div>
         </div>
 
         {/* Table */}
-        <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 320px)', minHeight: '200px' }}>
+        <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 320px)', minHeight: '150px' }}>
           
-          {/* DESKTOP */}
+          {/* DESKTOP - Full Table */}
           <div className="hidden lg:block">
-            <table className="w-full text-left min-w-[700px]">
-              <thead className="sticky top-0 bg-slate-900/95 text-slate-400 uppercase text-[9px] tracking-wider border-b border-slate-800 font-mono z-10 backdrop-blur">
+            <table className="w-full text-left min-w-[600px]">
+              <thead className="sticky top-0 bg-slate-900/95 text-slate-400 uppercase text-[8px] sm:text-[9px] tracking-wider border-b border-slate-800 font-mono z-10 backdrop-blur">
                 <tr>
-                  <th className="py-1.5 px-2 w-[65px]">Status</th>
-                  <th className="py-1.5 px-2 w-[80px]">System</th>
-                  <th className="py-1.5 px-2 w-[50px]">Cat</th>
-                  <th className="py-1.5 px-2 w-[50px]">Siren</th>
-                  <th className="py-1.5 px-2 w-[60px]">Zones</th>
-                  <th className="py-1.5 px-2 w-[130px]">Message</th>
-                  <th className="py-1.5 px-2 w-[70px]">Time</th>
-                  <th className="py-1.5 px-2 w-[70px] text-center">Pending</th>
-                  <th className="py-1.5 px-2 w-[55px] text-center">Action</th>
+                  <th className="py-1.5 px-1.5 sm:px-2">Status</th>
+                  <th className="py-1.5 px-1.5 sm:px-2">System</th>
+                  <th className="py-1.5 px-1.5 sm:px-2">Cat</th>
+                  <th className="py-1.5 px-1.5 sm:px-2">Siren</th>
+                  <th className="py-1.5 px-1.5 sm:px-2">Zones</th>
+                  <th className="py-1.5 px-1.5 sm:px-2">Message</th>
+                  <th className="py-1.5 px-1.5 sm:px-2">Time</th>
+                  <th className="py-1.5 px-1.5 sm:px-2 text-center">Pending</th>
+                  <th className="py-1.5 px-1.5 sm:px-2 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/50">
@@ -419,54 +411,54 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                   const zoneDisplay = alert.zoneNames || alert.zoneNumbers;
                   return (
                     <tr key={alert.id} onClick={() => handleRowClick(alert)} className="hover:bg-slate-900/40 transition-colors cursor-pointer">
-                      <td className="py-1.5 px-2"><StatusBadge status={alert.status} /></td>
-                      <td className="py-1.5 px-2 font-mono font-bold text-white text-[10px] truncate max-w-[80px]">
-                        <div className="flex items-center gap-1">
+                      <td className="py-1.5 px-1.5 sm:px-2"><StatusBadge status={alert.status} /></td>
+                      <td className="py-1.5 px-1.5 sm:px-2 font-mono font-bold text-white text-[9px] sm:text-[10px] truncate max-w-[60px] sm:max-w-[80px]">
+                        <div className="flex items-center gap-0.5 sm:gap-1">
                           {alert.alarmSystem?.systemCode || 'UNKNOWN'}
                           {renderSirenStatus(alert)}
                         </div>
                       </td>
-                      <td className="py-1.5 px-2">
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] font-mono border ${getCategoryColor(category)}`}>
+                      <td className="py-1.5 px-1.5 sm:px-2">
+                        <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[7px] sm:text-[8px] font-mono border ${getCategoryColor(category)}`}>
                           {getCategoryShort(category)}
                         </span>
                       </td>
-                      <td className="py-1.5 px-2 text-center">
+                      <td className="py-1.5 px-1.5 sm:px-2 text-center">
                         {alert.alarmSystem?.sirenStatus === 'ON' ? (
-                          <span className="text-red-400 text-[10px] font-bold animate-pulse">🔔</span>
+                          <span className="text-red-400 text-[9px] sm:text-[10px] font-bold animate-pulse">🔔</span>
                         ) : (
-                          <span className="text-slate-500 text-[10px]">🔕</span>
+                          <span className="text-slate-500 text-[9px] sm:text-[10px]">🔕</span>
                         )}
                       </td>
-                      <td className="py-1.5 px-2">{renderZoneBadges(zoneDisplay)}</td>
-                      <td className="py-1.5 px-2 max-w-[130px]">
-                        <button onClick={(e) => handleMessageClick(e, alert)} className="flex items-center gap-1 text-slate-400 hover:text-white transition-colors group w-full min-w-0">
+                      <td className="py-1.5 px-1.5 sm:px-2">{renderZoneBadges(zoneDisplay)}</td>
+                      <td className="py-1.5 px-1.5 sm:px-2 max-w-[100px] sm:max-w-[130px]">
+                        <button onClick={(e) => handleMessageClick(e, alert)} className="flex items-center gap-0.5 sm:gap-1 text-slate-400 hover:text-white transition-colors group w-full min-w-0">
                           <span className="flex-shrink-0">{getMessageIcon(alert.alertType)}</span>
-                          <span className="text-[10px] font-mono group-hover:text-blue-400 transition-colors truncate block w-full">
+                          <span className="text-[8px] sm:text-[10px] font-mono group-hover:text-blue-400 transition-colors truncate block w-full">
                             {getMessagePreview(alert.alertType)}
                           </span>
                         </button>
                       </td>
-                      <td className="py-1.5 px-2 text-slate-400 text-[9px] font-mono whitespace-nowrap">
+                      <td className="py-1.5 px-1.5 sm:px-2 text-slate-400 text-[8px] sm:text-[9px] font-mono whitespace-nowrap">
                         {new Date(alert.receivedAt).toLocaleTimeString()}
                       </td>
-                      <td className="py-1.5 px-2 text-center">
+                      <td className="py-1.5 px-1.5 sm:px-2 text-center">
                         {isPending ? (
-                          <span className="inline-flex items-center gap-0.5 text-yellow-400 font-mono text-[9px] font-bold whitespace-nowrap">
-                            <Timer className="w-2.5 h-2.5" />
+                          <span className="inline-flex items-center gap-0.5 text-yellow-400 font-mono text-[8px] sm:text-[9px] font-bold whitespace-nowrap">
+                            <Timer className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
                             {getPendingDuration(alert.receivedAt)}
                           </span>
                         ) : (
-                          <span className="text-[8px] text-slate-500 font-mono">—</span>
+                          <span className="text-[7px] sm:text-[8px] text-slate-500 font-mono">—</span>
                         )}
                       </td>
-                      <td className="py-1.5 px-2 text-center">
+                      <td className="py-1.5 px-1.5 sm:px-2 text-center">
                         {isPending ? (
-                          <button onClick={(e) => handleResolveClick(e, alert)} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-[8px] font-mono transition-all whitespace-nowrap">
-                            <CheckCircle className="w-2.5 h-2.5" /> ✓
+                          <button onClick={(e) => handleResolveClick(e, alert)} className="inline-flex items-center gap-0.5 px-1 py-0.5 sm:px-1.5 sm:py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-[7px] sm:text-[8px] font-mono transition-all whitespace-nowrap">
+                            <CheckCircle className="w-2 h-2 sm:w-2.5 sm:h-2.5" /> ✓
                           </button>
                         ) : (
-                          <span className="text-[8px] text-slate-500 font-mono">—</span>
+                          <span className="text-[7px] sm:text-[8px] text-slate-500 font-mono">—</span>
                         )}
                       </td>
                     </tr>
@@ -476,19 +468,19 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
             </table>
           </div>
 
-          {/* TABLET */}
+          {/* TABLET - Compact Table */}
           <div className="hidden sm:block lg:hidden">
-            <table className="w-full text-left min-w-[500px]">
-              <thead className="sticky top-0 bg-slate-900/95 text-slate-400 uppercase text-[8px] tracking-wider border-b border-slate-800 font-mono z-10 backdrop-blur">
+            <table className="w-full text-left min-w-[450px]">
+              <thead className="sticky top-0 bg-slate-900/95 text-slate-400 uppercase text-[7px] sm:text-[8px] tracking-wider border-b border-slate-800 font-mono z-10 backdrop-blur">
                 <tr>
-                  <th className="py-1 px-1.5 w-[55px]">Status</th>
-                  <th className="py-1 px-1.5 w-[60px]">System</th>
-                  <th className="py-1 px-1.5 w-[35px]">Cat</th>
-                  <th className="py-1 px-1.5 w-[50px]">Siren</th>
-                  <th className="py-1 px-1.5 w-[50px]">Zones</th>
-                  <th className="py-1 px-1.5 w-[100px]">Message</th>
-                  <th className="py-1 px-1.5 w-[55px]">Time</th>
-                  <th className="py-1 px-1.5 w-[50px] text-center">Action</th>
+                  <th className="py-1 px-1">Status</th>
+                  <th className="py-1 px-1">System</th>
+                  <th className="py-1 px-1">Cat</th>
+                  <th className="py-1 px-1">Siren</th>
+                  <th className="py-1 px-1">Zones</th>
+                  <th className="py-1 px-1">Message</th>
+                  <th className="py-1 px-1">Time</th>
+                  <th className="py-1 px-1 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/50">
@@ -498,44 +490,37 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
                   const zoneDisplay = alert.zoneNames || alert.zoneNumbers;
                   return (
                     <tr key={alert.id} onClick={() => handleRowClick(alert)} className="hover:bg-slate-900/40 transition-colors cursor-pointer">
-                      <td className="py-1 px-1.5"><StatusBadge status={alert.status} /></td>
-                      <td className="py-1 px-1.5 font-mono font-bold text-white text-[9px] truncate max-w-[60px]">
-                        <div className="flex items-center gap-1">
-                          {alert.alarmSystem?.systemCode || 'UNKNOWN'}
-                          {renderSirenStatus(alert)}
-                        </div>
+                      <td className="py-1 px-1"><StatusBadge status={alert.status} /></td>
+                      <td className="py-1 px-1 font-mono font-bold text-white text-[8px] truncate max-w-[50px]">
+                        {alert.alarmSystem?.systemCode || 'UNKNOWN'}
                       </td>
-                      <td className="py-1 px-1.5">
-                        <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[7px] font-mono border ${getCategoryColor(category)}`}>
+                      <td className="py-1 px-1">
+                        <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[6px] sm:text-[7px] font-mono border ${getCategoryColor(category)}`}>
                           {getCategoryShort(category)}
                         </span>
                       </td>
-                      <td className="py-1 px-1.5 text-center">
-                        {alert.alarmSystem?.sirenStatus === 'ON' ? (
-                          <span className="text-red-400 text-[8px] animate-pulse">🔔</span>
-                        ) : (
-                          <span className="text-slate-500 text-[8px]">🔕</span>
-                        )}
+                      <td className="py-1 px-1 text-center">
+                        {alert.alarmSystem?.sirenStatus === 'ON' ? '🔔' : '🔕'}
                       </td>
-                      <td className="py-1 px-1.5">{renderZoneBadges(zoneDisplay)}</td>
-                      <td className="py-1 px-1.5 max-w-[100px]">
+                      <td className="py-1 px-1">{renderZoneBadges(zoneDisplay)}</td>
+                      <td className="py-1 px-1 max-w-[80px]">
                         <button onClick={(e) => handleMessageClick(e, alert)} className="flex items-center gap-0.5 text-slate-400 hover:text-white transition-colors group w-full min-w-0">
                           <span className="flex-shrink-0">{getMessageIcon(alert.alertType)}</span>
-                          <span className="text-[9px] font-mono group-hover:text-blue-400 transition-colors truncate block w-full">
+                          <span className="text-[7px] sm:text-[8px] font-mono group-hover:text-blue-400 transition-colors truncate block w-full">
                             {getMessagePreview(alert.alertType)}
                           </span>
                         </button>
                       </td>
-                      <td className="py-1 px-1.5 text-slate-400 text-[8px] font-mono whitespace-nowrap">
+                      <td className="py-1 px-1 text-slate-400 text-[7px] sm:text-[8px] font-mono whitespace-nowrap">
                         {new Date(alert.receivedAt).toLocaleTimeString()}
                       </td>
-                      <td className="py-1 px-1.5 text-center">
+                      <td className="py-1 px-1 text-center">
                         {isPending ? (
-                          <button onClick={(e) => handleResolveClick(e, alert)} className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-[7px] font-mono transition-all whitespace-nowrap">
-                            <CheckCircle className="w-2 h-2" /> ✓
+                          <button onClick={(e) => handleResolveClick(e, alert)} className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-[6px] sm:text-[7px] font-mono transition-all whitespace-nowrap">
+                            <CheckCircle className="w-1.5 h-1.5 sm:w-2 sm:h-2" /> ✓
                           </button>
                         ) : (
-                          <span className="text-[7px] text-slate-500 font-mono">—</span>
+                          <span className="text-[6px] sm:text-[7px] text-slate-500 font-mono">—</span>
                         )}
                       </td>
                     </tr>
@@ -545,59 +530,59 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
             </table>
           </div>
 
-          {/* MOBILE */}
+          {/* MOBILE - Cards */}
           <div className="sm:hidden divide-y divide-slate-800">
             {filteredAlerts.map((alert) => {
               const isPending = alert.status === 'PENDING';
               const category = getAlertCategory(alert);
               const zoneDisplay = alert.zoneNames || alert.zoneNumbers;
               return (
-                <div key={alert.id} onClick={() => handleRowClick(alert)} className="p-2.5 hover:bg-slate-900/40 transition-colors cursor-pointer space-y-1">
+                <div key={alert.id} onClick={() => handleRowClick(alert)} className="p-2 hover:bg-slate-900/40 transition-colors cursor-pointer space-y-0.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1 flex-wrap min-w-0">
                       <StatusBadge status={alert.status} />
-                      <span className="font-mono font-bold text-white text-[9px] truncate max-w-[50px]">
+                      <span className="font-mono font-bold text-white text-[8px] truncate max-w-[45px]">
                         {alert.alarmSystem?.systemCode || 'UNKNOWN'}
                       </span>
-                      <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[7px] font-mono border ${getCategoryColor(category)}`}>
+                      <span className={`inline-flex items-center px-1 py-0.5 rounded-full text-[6px] font-mono border ${getCategoryColor(category)}`}>
                         {getCategoryShort(category)}
                       </span>
                       {renderSirenStatus(alert)}
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex items-center gap-0.5 flex-shrink-0">
                       {isPending && (
-                        <button onClick={(e) => handleResolveClick(e, alert)} className="p-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded transition-all">
-                          <CheckCircle className="w-2.5 h-2.5" />
+                        <button onClick={(e) => handleResolveClick(e, alert)} className="p-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded transition-all">
+                          <CheckCircle className="w-2 h-2" />
                         </button>
                       )}
-                      <button onClick={(e) => handleMessageClick(e, alert)} className="p-1 bg-slate-800 rounded hover:bg-slate-700 transition-colors flex-shrink-0">
+                      <button onClick={(e) => handleMessageClick(e, alert)} className="p-0.5 bg-slate-800 rounded hover:bg-slate-700 transition-colors flex-shrink-0">
                         {getMessageIcon(alert.alertType)}
                       </button>
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-0.5 text-[9px] text-slate-400 min-w-0">
-                    <MapPin className="w-2.5 h-2.5 flex-shrink-0" />
-                    <span className="truncate max-w-[70px]">{alert.alarmSystem?.location || 'Unknown'}</span>
+                  <div className="flex flex-wrap items-center gap-0.5 text-[8px] text-slate-400 min-w-0">
+                    <MapPin className="w-2 h-2 flex-shrink-0" />
+                    <span className="truncate max-w-[60px]">{alert.alarmSystem?.location || 'Unknown'}</span>
                     <span className="text-slate-600 mx-0.5">•</span>
                     {renderZoneBadges(zoneDisplay)}
                   </div>
 
-                  <div className="flex items-center justify-between gap-1 text-[9px]">
+                  <div className="flex items-center justify-between gap-1 text-[8px]">
                     <button onClick={(e) => handleMessageClick(e, alert)} className="flex items-center gap-0.5 text-slate-400 hover:text-white transition-colors group min-w-0 flex-1">
                       <span className="flex-shrink-0">{getMessageIcon(alert.alertType)}</span>
-                      <span className="truncate font-mono text-[8px] block w-full">
+                      <span className="truncate font-mono text-[7px] block w-full">
                         {getMessagePreview(alert.alertType)}
                       </span>
                     </button>
-                    <span className="text-slate-500 text-[8px] font-mono flex-shrink-0">
+                    <span className="text-slate-500 text-[7px] font-mono flex-shrink-0">
                       {new Date(alert.receivedAt).toLocaleTimeString()}
                     </span>
                   </div>
 
                   {isPending && (
-                    <div className="flex items-center gap-0.5 text-yellow-400 text-[8px] font-mono font-bold">
-                      <Timer className="w-2.5 h-2.5" />
+                    <div className="flex items-center gap-0.5 text-yellow-400 text-[7px] font-mono font-bold">
+                      <Timer className="w-2 h-2" />
                       {getPendingDuration(alert.receivedAt)}
                     </div>
                   )}
@@ -608,9 +593,9 @@ export default function AlertTable({ alerts, loading, tableContainerRef, usernam
 
           {/* NO RESULTS */}
           {filteredAlerts.length === 0 && (
-            <div className="p-6 text-center">
-              <div className="text-slate-500 font-mono text-sm">No alerts match your filters</div>
-              <button onClick={() => { setFilterCategory('ALL'); setFilterSystem('ALL'); setSearchQuery(''); }} className="mt-1 text-[9px] text-red-400 hover:text-red-300 font-mono transition-colors">
+            <div className="p-4 sm:p-6 text-center">
+              <div className="text-slate-500 font-mono text-xs sm:text-sm">No alerts match your filters</div>
+              <button onClick={() => { setFilterCategory('ALL'); setFilterSystem('ALL'); setSearchQuery(''); }} className="mt-1 text-[8px] sm:text-[9px] text-red-400 hover:text-red-300 font-mono transition-colors">
                 Clear all filters
               </button>
             </div>

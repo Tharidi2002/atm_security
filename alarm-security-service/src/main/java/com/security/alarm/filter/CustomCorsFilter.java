@@ -19,13 +19,27 @@ public class CustomCorsFilter implements Filter {
         HttpServletResponse httpResponse = (HttpServletResponse) response;
         HttpServletRequest httpRequest = (HttpServletRequest) request;
 
-        System.out.println("[CustomCorsFilter] Intercepting: " + httpRequest.getMethod() + " " + httpRequest.getRequestURI());
+                // System.out.println("[CustomCorsFilter] Intercepting: " + httpRequest.getMethod() + " " + httpRequest.getRequestURI());
 
-        // Add CORS headers to EVERY response
+
+        // ============================================================
+        // LOCAL DEVELOPMENT - Allow all
+        // ============================================================
         httpResponse.setHeader("Access-Control-Allow-Origin", "*");
         httpResponse.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
         httpResponse.setHeader("Access-Control-Allow-Headers", "*");
         httpResponse.setHeader("Access-Control-Max-Age", "3600");
+
+        // ============================================================
+        // PRODUCTION - Uncomment for production
+        // ============================================================
+        // String origin = httpRequest.getHeader("Origin");
+        // if (origin != null && (origin.contains("vercel.app") || origin.contains("localhost"))) {
+        //     httpResponse.setHeader("Access-Control-Allow-Origin", origin);
+        // }
+        // httpResponse.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+        // httpResponse.setHeader("Access-Control-Allow-Headers", "*");
+        // httpResponse.setHeader("Access-Control-Max-Age", "3600");
 
         // Handle preflight OPTIONS request
         if ("OPTIONS".equalsIgnoreCase(httpRequest.getMethod())) {
